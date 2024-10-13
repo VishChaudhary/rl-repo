@@ -12,7 +12,7 @@ from relaqs.plot_data import plot_data
 from relaqs import RESULTS_DIR
 
 from qutip.operators import *
-from qutip import cphase
+from qutip.qip.gates import cphase
 
 import numpy as np
 import datetime
@@ -108,7 +108,7 @@ def run(n_training_iterations=1, save=True, plot=True):
         ray.shutdown()
 
 if __name__ == "__main__":
-    n_training_iterations = 50
+    n_training_iterations = 2
     save = True
     plot = True
     run(n_training_iterations, save, plot)

@@ -1,0 +1,10 @@
+Metadata-Version: 2.1
+Name: relaqs
+Version: 0.0.1
+Requires-Python: <4,>3.6
+Requires-Dist: ray[rllib]
+Requires-Dist: ray[tune]
+Requires-Dist: matplotlib
+Requires-Dist: qutip
+Requires-Dist: torch
+Requires-Dist: tensorboard
