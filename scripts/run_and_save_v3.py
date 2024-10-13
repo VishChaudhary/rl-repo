@@ -2,6 +2,7 @@
 import ray
 import gymnasium as gym
 from ray.rllib.algorithms.ddpg import DDPGConfig
+
 from relaqs.environments import SingleQubitEnv, NoisySingleQubitEnv
 from relaqs.save_results import SaveResults
 from relaqs.plot_data import plot_data
