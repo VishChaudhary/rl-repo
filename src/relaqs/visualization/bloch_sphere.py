@@ -56,6 +56,6 @@ def load_and_plot_noisy(file_path):
     plot_bloch_sphere_state(dm)
 
 if __name__ == "__main__":
-    load_and_plot_noiseless('2023-08-02_09-10-09/env_data.csv') # H noiseless
-    load_and_plot_noisy('2023-07-21_13-34-31/env_data.csv') # H
+    load_and_plot_noisy('2023-08-16_13-23-32/env_data.csv') # H noiseless
+    #load_and_plot_noisy('2023-07-21_13-34-31/env_data.csv') # H
 

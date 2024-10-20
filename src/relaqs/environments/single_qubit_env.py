@@ -3,6 +3,7 @@ import cmath
 import gymnasium as gym
 import numpy as np
 import scipy.linalg as la
+import pandas as pd
 ####TEST####
 from relaqs.api import gates
 
@@ -19,7 +20,7 @@ class SingleQubitEnv(gym.Env):
             "U_initial": I,
             "U_target": X,  
             "final_time": 35.5556E-9, # in seconds
-            "num_Haar_basis": 1,
+            "num_Haar_basis": 2,
             "steps_per_Haar": 2,  # steps per Haar basis per episode
             "verbose": True,
             "observation_space_size": 9,  # 1 (fidelity) + 8 (flattened unitary)
@@ -46,6 +47,9 @@ class SingleQubitEnv(gym.Env):
         self.alpha_max = 0.05E9 # detuning of the control pulse in Hz
         self.transition_history = []
         self.episode_id = 0
+        self.columns = ["gamma_magnitude", 'gamma_phase', 'alpha', 'num_time_bins', 'current_Haar_num',
+                   'current_step_per_Haar', 'fidelity']
+        self.data_list = []
 
     def unitary_to_observation(self, U):
         return (
@@ -135,6 +139,11 @@ class SingleQubitEnv(gym.Env):
             terminated: {terminated}
             """
         return info_string
+    #@staticmethod
+    def get_df(self):
+        df = pd.DataFrame(data = self.data_list, columns=self.columns)
+        return df
+
 
     def step(self, action):
         num_time_bins = 2 ** (self.current_Haar_num - 1) # Haar number decides the number of time bins
@@ -156,6 +165,8 @@ class SingleQubitEnv(gym.Env):
         reward = self.compute_reward(fidelity)
         self.prev_fidelity = fidelity
 
+        data = [gamma_magnitude, gamma_phase, alpha, num_time_bins, self.current_Haar_num, self.current_step_per_Haar, fidelity]
+        self.data_list.append(data)
         self.state = self.get_observation()
 
         self.update_transition_history(fidelity, reward, action)
