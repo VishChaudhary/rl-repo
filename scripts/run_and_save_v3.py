@@ -2,6 +2,8 @@
 import ray
 import gymnasium as gym
 from ray.rllib.algorithms.ddpg import DDPGConfig
+import pandas as pd
+import os
 
 from relaqs.environments import SingleQubitEnv, NoisySingleQubitEnv
 from relaqs.save_results import SaveResults
@@ -48,6 +50,8 @@ def run(env_class: gym.Env = SingleQubitEnv,
         env = alg.workers.local_worker().env
         sr = SaveResults(env, alg, target_gate_string=str(target_gate))
         save_dir = sr.save_results()
+        df = env.get_df()
+        df.to_csv(os.path.join(save_dir, "pulse_data.csv"))
         print("Results saved to:", save_dir)
     # --------------------------------------------------------------
 
@@ -60,9 +64,9 @@ def run(env_class: gym.Env = SingleQubitEnv,
     # --------------------------------------------------------------
 
 if __name__ == "__main__":
-    env_class = NoisySingleQubitEnv
+    env_class = SingleQubitEnv
     target_gate = gates.Y()
-    n_training_iterations = 50
+    n_training_iterations = 10
     save = plot = True
     run(env_class, target_gate, n_training_iterations, save, plot)
     
