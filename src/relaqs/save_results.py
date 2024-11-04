@@ -6,6 +6,7 @@ from typing import List, Dict
 import json
 import numpy as np
 from types import MappingProxyType
+import pickle
 
 l = frozenset([])
 FrozenSetType = type(l)
@@ -93,8 +94,13 @@ class SaveResults():
                 # Write the modified row to the CSV
                 writer.writerow(row)
 
-        with open(self.save_path + "env_data.npy", "wb") as f:
-            np.save(f, np.array(self.env.transition_history))
+        # with open(self.save_path + "env_data.npy", "wb") as f:
+        #     print("---------------------------------------------------------------------------------------")
+        #     print(self.env.transition_history)
+        #     print("---------------------------------------------------------------------------------------")
+        #     np.save(f, np.array(self.env.transition_history))
+        with open(self.save_path + "env_data.pkl", "wb") as f:
+            pickle.dump(self.env.transition_history, f)
 
     def save_train_results_data(self):
         with open(self.save_path+'train_results_data.json', 'w') as f:

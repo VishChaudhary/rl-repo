@@ -57,7 +57,7 @@ def plot_data(save_dir, episode_length, figure_title=''):
     """ Currently works for constant episode_length """
     #---------------------- Getting data from files  <--------------------------------------
     try:
-        with open(save_dir + "env_data.npy", "rb") as f:
+        with open(save_dir + "env_data.pkl", "rb") as f:
             df = np.load(f)
             fidelities = df[:, 0]
             rewards = df[:, 1]

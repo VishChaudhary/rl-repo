@@ -10,7 +10,7 @@ n_episodes_for_inferencing = 10
 save = True
 plot = True
 figure_title = "Inferencing with model"
-n_training_iterations = 1
+n_training_iterations = 10
 
 # -----------------------> Training model <------------------------
 alg = run(gate=H(), 

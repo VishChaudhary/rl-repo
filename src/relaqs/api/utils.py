@@ -114,7 +114,8 @@ def run(gate, n_training_iterations=1, noise_file=""):
     env_config["relaxation_rates_list"] = [np.reciprocal(t1_list).tolist(), np.reciprocal(t2_list).tolist()] # using real T1 data
     env_config["delta"] = detuning_list
     env_config["relaxation_ops"] = [sigmam(),sigmaz()]
-    env_config["observation_space_size"] = 2*16 + 1 + 2 + 1 # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rate + 1 for detuning
+    # env_config["observation_space_size"] = 2*16 + 1 + 2 + 1 # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rate + 1 for detuning
+    env_config["observation_space_size"] = 36 # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rate + 1 for detuning
     env_config["verbose"] = True
 
     # ---------------------> Configure algorithm and Environment <-------------------------

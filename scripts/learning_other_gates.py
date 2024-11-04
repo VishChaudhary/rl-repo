@@ -69,6 +69,6 @@ if __name__ == "__main__":
     #n_training_iterations = 500
     n_training_iterations = 1
     save = True
-    plot = False
+    plot = True
     run(n_training_iterations, save, plot)
     
