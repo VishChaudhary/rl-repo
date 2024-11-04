@@ -6,6 +6,7 @@ from relaqs.api.gates import H
 
 noise_file = "april/ibmq_belem_month_is_4.json"
 inferencing_noise_file = "april/ibmq_manila_month_is_4.json"
+#n_episodes_for_inferencing = 10
 n_episodes_for_inferencing = 10
 save = True
 plot = True
@@ -32,4 +33,3 @@ assert save is True, "If plot=True, then save must also be set to True"
 plot_data(save_dir, episode_length=alg._episode_history[0].episode_length, figure_title=figure_title)
 print("Plots Created")
 # --------------------------------------------------------------
-

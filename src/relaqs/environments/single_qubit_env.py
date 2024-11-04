@@ -139,11 +139,10 @@ class SingleQubitEnv(gym.Env):
             terminated: {terminated}
             """
         return info_string
-    #@staticmethod
+
     def get_df(self):
         df = pd.DataFrame(data = self.data_list, columns=self.columns)
         return df
-
 
     def step(self, action):
         num_time_bins = 2 ** (self.current_Haar_num - 1) # Haar number decides the number of time bins
