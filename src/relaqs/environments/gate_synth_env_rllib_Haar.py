@@ -240,6 +240,28 @@ class GateSynthEnvRLlibHaarNoisy(gym.Env):
         self.transition_history = []
         self.episode_id = None
 
+    def return_env_config(self):
+        return {
+            # "action_space_size": 3,
+            "action_space_size": 2,
+            "U_initial": I,  # staring with I
+            "U_target": X,  # target for X
+            "final_time": self.final_time,  # in seconds
+            "num_Haar_basis": self.num_Haar_basis,  # number of Haar basis (need to update for odd combinations)
+            "steps_per_Haar": self.steps_per_Haar,  # steps per Haar basis per episode
+            "delta": self.delta,  # qubit detuning
+            "save_data_every_step": 1,
+            "verbose": True,
+            #            "relaxation_rates_list": [[0.01,0.02],[0.05, 0.07]], # relaxation lists of list of floats to be sampled from when resetting environment.
+            #            "relaxation_ops": [sigmam(),sigmaz()] #relaxation operator lists for T1 and T2, respectively
+            "relaxation_rates_list": self.relaxation_rates_list,
+            # relaxation lists of list of floats to be sampled from when resetting environment. (10 usec)
+            "relaxation_ops": self.relaxation_ops,  # relaxation operator lists for T1 and T2, respectively
+            "observation_space_size": 35,
+            # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rate
+            #             "observation_space_size": 2*16 + 1 + 1 + 1 # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 1 for relaxation rate + 1 for detuning
+        }
+
     def detuning_update(self):
         # Random detuning selection
         if len(self.delta)==1:
