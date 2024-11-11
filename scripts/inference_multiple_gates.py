@@ -55,7 +55,6 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # target_gate = gates.RandomSU2()
     env_config["U_target"] = train_gate.get_matrix()
     training_plot_filename = f'training_{train_gate}.png'
-    inferencing_plot_filename = f'inferencing_{inference_gate}.png'
 
 
     # ---------------------> Get quantum noise data <-------------------------
@@ -99,11 +98,24 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     train_alg = alg
 
-    # -----------------------> Inferencing <---------------------------
-    env = alg.workers.local_worker().env
-    # print("Episode history length:", len(alg._episode_history))
-    inference_env, alg = do_inferencing(env, alg, inference_gate, n_episodes_for_inferencing)
-    # print("Episode history length:", len(alg._episode_history))
+    for inferencing_gate in inference_gate:
+        inferencing_plot_filename = f'inferencing_{inferencing_gate}.png'
+        # -----------------------> Inferencing <---------------------------
+        env = train_alg.workers.local_worker().env
+        # print("Episode history length:", len(alg._episode_history))
+        inference_env, alg = do_inferencing(env, train_alg, inferencing_gate, n_episodes_for_inferencing)
+        # print("Episode history length:", len(alg._episode_history))
+        # ---------------------> Save/Plot Inference Results <-------------------------
+        if save and plot is True:
+            sr = SaveResults(inference_env, alg, save_path=save_filepath,
+                             target_gate_string=f"Noisy_Train-{str(train_gate)}, Inference-{str(inferencing_gate)}")
+            save_dir = sr.save_results()
+            plot_data(save_dir, plot_filename=inferencing_plot_filename,
+                      episode_length=alg._episode_history[0].episode_length,
+                      figure_title=f"[NOISY] Inferencing on {str(inferencing_gate)} (Previously Trained on {str(train_gate)})")
+            print("Results saved to:", save_dir)
+        # --------------------------------------------------------------
+
 
     # ---------------------> Save/Plot Training Results <-------------------------
     if save and plot is True:
@@ -115,15 +127,6 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
         print("Results saved to:", save_dir)
     # --------------------------------------------------------------
 
-    # ---------------------> Save/Plot Inference Results <-------------------------
-    if save and plot is True:
-        sr = SaveResults(inference_env, alg, save_path = save_filepath, target_gate_string= f"Noisy_Train-{str(train_gate)}, Inference-{str(inference_gate)}")
-        save_dir = sr.save_results()
-        plot_data(save_dir, plot_filename= inferencing_plot_filename,
-                      episode_length=alg._episode_history[0].episode_length,
-                      figure_title=f"[NOISY] Inferencing on {str(inference_gate)} (Previously Trained on {str(train_gate)})")
-        print("Results saved to:", save_dir)
-    # --------------------------------------------------------------
 
     # # ---------------------> Plot Training/Inferencing Data <-------------------------
     # if plot is True:
@@ -198,11 +201,11 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
 
 if __name__ == "__main__":
     # n_training_iterations = 500
-    n_training_iterations = 20
-    n_episodes_for_inferencing = 5
+    n_training_iterations = 25
+    n_episodes_for_inferencing = 1000
     save = True
     plot = True
     train_gate = gates.RandomSU2()
-    inferencing_gate = gates.X_pi_4()
+    inferencing_gate = [gates.X_pi_4(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(), gates.RandomSU2(), gates.I()]
     run(train_gate, inferencing_gate, n_training_iterations, n_episodes_for_inferencing, save, plot, noise_file)
 
