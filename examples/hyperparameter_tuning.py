@@ -83,7 +83,7 @@ def objective(config):
     return results
 
 if __name__ == "__main__":
-    n_configurations = 100 
+    n_configurations = 100
     save = True
     run_ray_tune(n_configurations=n_configurations, save=save)
     ray.shutdown() # not sure if this is required
