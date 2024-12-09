@@ -69,6 +69,7 @@ class GateSynthEnvRLlibHaar(gym.Env):
         }
 
     def __init__(self, env_config):
+        self.original_U_target = env_config["U_target"]
         self.final_time = env_config["final_time"]  # Final time for the gates
         self.observation_space = gym.spaces.Box(low=-1, high=1, shape=(env_config["observation_space_size"],))
         self.action_space = gym.spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]))
@@ -108,7 +109,11 @@ class GateSynthEnvRLlibHaar(gym.Env):
         return np.append([self.compute_fidelity()], self.unitary_to_observation(self.U))
 
     def compute_fidelity(self):
+        ##Check if this is the same as:  U_target_dagger = self.unitary_to_superoperator(env_config["U_target"].conjugate().transpose())
         U_target_dagger = self.U_target.conjugate().transpose()
+        # temp = self.original_U_target.conjugate().transpose()
+        #
+        # U_target_dagger = (spre(Qobj(temp)) * spost(Qobj(temp))).data.toarray()
         return float(np.abs(np.trace(U_target_dagger @ self.U))) / (self.U.shape[0])
 
     def compute_reward(self, fidelity):
@@ -259,6 +264,7 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
         super().__init__(env_config)
         self.detuning_list = env_config["detuning_list"]
         self.detuning_update()
+        self.original_U_target = env_config["U_target"]
         self.U_target = self.unitary_to_superoperator(env_config["U_target"])
         self.U_initial = self.unitary_to_superoperator(env_config["U_initial"])
         self.relaxation_rates_list = env_config["relaxation_rates_list"]
@@ -280,26 +286,7 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
             # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rate + 1 for detuning,
         #              + 2*16 = (complex number)*(density matrix elements = 4)^2)
         return env_config
-        # return {
-        #     # "action_space_size": 3,
-        #     "action_space_size": 3,
-        #     "U_initial": I,
-        #     "U_target": X,
-        #     "final_time": 35.5556E-9,  # in seconds
-        #     "num_Haar_basis": 2,
-        #     "steps_per_Haar": 2,  # steps per Haar basis per episode
-        #     "verbose": True,
-        #     "observation_space_size": 9,  # 1 (fidelity) + 8 (flattened unitary)
-        #     "detuning_list": self.detuning_list,  # qubit detuning
-        #     #            "relaxation_rates_list": [[0.01,0.02],[0.05, 0.07]], # relaxation lists of list of floats to be sampled from when resetting environment.
-        #     #            "relaxation_ops": [sigmam(),sigmaz()] #relaxation operator lists for T1 and T2, respectively
-        #     "relaxation_rates_list": self.relaxation_rates_list,
-        #     # relaxation lists of list of floats to be sampled from when resetting environment. (10 usec)
-        #     "relaxation_ops": self.relaxation_ops,  # relaxation operator lists for T1 and T2, respectively
-        #     "observation_space_size": 36,
-        #     # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rate
-        #     #             "observation_space_size": 2*16 + 1 + 1 + 1 # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 1 for relaxation rate + 1 for detuning
-        # }
+
 
     def detuning_update(self):
         # Random detuning selection
@@ -308,9 +295,13 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
         else:
             self.detuning = random.sample(self.detuning_list, k=1)[0]
 
+### CHECK HERE COMPARED TO OLD IMPLEMENTATION: return (spre(Qobj(U)) * spost(Qobj(U))).data.toarray()
+    # @classmethod
+    # def unitary_to_superoperator(self, U):
+    #     return np.kron(U.conj(), U)
     @classmethod
     def unitary_to_superoperator(self, U):
-        return np.kron(U.conj(), U)
+        return (spre(Qobj(U)) * spost(Qobj(U))).data.toarray()
 
     def get_relaxation_rate(self):
         relaxation_size = len(self.relaxation_ops)  # get number of relaxation ops
@@ -339,11 +330,48 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
         #                  normalized_detuning,
         #                  self.unitary_to_observation(self.U))
 
-    def hamiltonian(self, detuning, alpha, gamma_magnitude, gamma_phase):
+    def hamiltonian2(self, detuning, alpha, gamma_magnitude, gamma_phase):
         return (detuning + alpha) * Z + gamma_magnitude * (np.cos(gamma_phase) * X + np.sin(gamma_phase) * Y)
 
+    def hamiltonian_update2(self, num_time_bins, *hamiltonian_args):
+        H2 = self.hamiltonian2(*hamiltonian_args)
+        self.H_array.append(H2)
+        self.H_tot = []
+        for ii, H_elem in enumerate(self.H_array):
+            for jj in range(0, num_time_bins):
+                Haar_num = self.current_Haar_num - np.floor(
+                    ii / self.steps_per_Haar)  # Haar_num: label which Haar wavelet, current_Haar_num: order in the array
+                factor = (-1) ** np.floor(jj / (2 ** (Haar_num - 1)))
+                if ii > 0:
+                    self.H_tot[jj] += factor * H_elem
+                else:
+                    self.H_tot.append(factor * H_elem)
+
+    def compute_fidelity(self):
+        ##Check if this is the same as:  U_target_dagger =
+        # self.unitary_to_superoperator(env_config["U_target"].conjugate().transpose())
+        U_target_dagger = self.U_target.conjugate().transpose()
+        # temp = self.original_U_target.conjugate().transpose()
+        #
+        # U_target_dagger = (spre(Qobj(temp)) * spost(Qobj(temp))).data.toarray()
+        fidelity = float(np.abs(np.trace(U_target_dagger @ self.U))) / (self.U.shape[0])
+        if fidelity >= 1:
+            print(f"FIDELITY HIGHER THAN 1--------------------------------------------------------------------------------------------------------\n{fidelity}\n")
+            fidelity = 0.99871379
+        return fidelity
+
     def reset(self, *, seed=None, options=None):
-        super().reset()
+        ##CHECK THIS RESET RIGHT HERE ALSO
+        self.U = self.U_initial.copy()
+        self.current_Haar_num = 1
+        self.current_step_per_Haar = 1
+        self.H_array = []
+        self.H_tot = []
+        self.U_array = []
+        self.prev_fidelity = 0
+        self.episode_id += 1
+        if self.verbose is True:
+            print("episode id: ", self.episode_id)
         self.state = self.get_observation()
         self.relaxation_rate = self.get_relaxation_rate()
         self.detuning_update()
@@ -379,7 +407,7 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
         # gamma is the complex amplitude of the control field
         gamma_magnitude, gamma_phase, alpha = self.parse_actions(action)
 
-        self.hamiltonian_update(num_time_bins, self.detuning, alpha, gamma_magnitude, gamma_phase)
+        self.hamiltonian_update2(num_time_bins, self.detuning, alpha, gamma_magnitude, gamma_phase)
 
         self.operator_update(num_time_bins)
 
@@ -401,6 +429,39 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
 
         info = {}
         return (self.state, reward, terminated, truncated, info)
+
+if __name__ == "__main__":
+    rand_gate = gates.RandomSU2()
+    rand_mat = rand_gate.get_matrix()
+
+    ## Checking if both unitary_to_superoperator implementations are the same
+    unitary1 = np.kron(rand_mat.conj(), rand_mat)
+    unitary2 = (spre(Qobj(rand_mat)) * spost(Qobj(rand_mat))).data.toarray()
+    print(np.allclose(unitary1, unitary2))
+    rho = np.array([[1, 0], [0, 0]])  # Example density matrix
+    vec_rho = rho.flatten()  # Vectorize the density matrix
+    result1 = unitary1 @ vec_rho
+    result2 = unitary2 @ vec_rho
+    print(np.allclose(result1, result2))
+
+    ##Checking if both U_target_dagger implementations are the same
+    ##This check assumes that unitary1 and unitary 2 will be the same
+    rand_targ1 = unitary1.conjugate().transpose()
+    rand_targ2_inner = rand_mat.conjugate().transpose()
+    rand_targ21 = np.kron(rand_targ2_inner.conj(), rand_targ2_inner)
+    rand_targ22 = (spre(Qobj(rand_targ2_inner)) * spost(Qobj(rand_targ2_inner))).data.toarray()
+
+    print(f"Unitary1:\n{unitary1}\n")
+    print(f"Unitary2:\n{unitary2}\n")
+
+    print(f"rand_targ1:\n{rand_targ1}\n")
+    print(f"rand_targ21:\n{rand_targ21}\n")
+    print(f"rand_targ22:\n{rand_targ22}\n")
+    # ##Check if this is the same as:  U_target_dagger = self.unitary_to_superoperator(env_config["U_target"].conjugate().transpose())
+    # self.unitary_to_superoperator(env_config["U_target"].conjugate().transpose())
+    # U_target_dagger = self.U_target.conjugate().transpose()
+
+
 
 # class GateSynthEnvRLlibHaarNoisy(gym.Env):
 #     @classmethod
