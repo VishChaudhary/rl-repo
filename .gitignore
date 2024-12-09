@@ -2,4 +2,5 @@
 __pycache__
 .relaqs.egg-info
 results/
+ray
 gradfile
