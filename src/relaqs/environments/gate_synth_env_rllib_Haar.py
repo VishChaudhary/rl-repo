@@ -247,12 +247,16 @@ class GateSynthEnvRLlibHaar(gym.Env):
         return (self.state, reward, terminated, truncated, info)
 
 
+
 class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
     @classmethod
     def get_default_env_config(cls):
         env_config = super().get_default_env_config()
         t1_list, t2_list, detuning_list = sample_noise_parameters()
         env_config.update({"detuning_list": detuning_list,  # qubit detuning
+                           "fidelity_threshold": 0.8,
+                           "fidelity_target_switch_case": 20,
+                           "base_target_switch_case": 1000,
                            "relaxation_rates_list": [t1_list, t2_list],
                            # relaxation lists of list of floats to be sampled from when resetting environment. (10 usec)
                            "relaxation_ops": [sigmam(), sigmaz()],
@@ -267,6 +271,12 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
         self.original_U_target = env_config["U_target"]
         self.U_target = self.unitary_to_superoperator(env_config["U_target"])
         self.U_initial = self.unitary_to_superoperator(env_config["U_initial"])
+        self.global_episode_num = 0
+        self.local_episode_num = 0
+        self.fidelity_threshold = env_config["fidelity_threshold"]
+        self.continuous_fidelity_count = 0
+        self.fidelity_target_switch_case = env_config["fidelity_target_switch_case"]
+        self.base_target_switch_case = env_config["base_target_switch_case"]
         self.relaxation_rates_list = env_config["relaxation_rates_list"]
         self.relaxation_ops = env_config["relaxation_ops"]
         self.relaxation_rate = self.get_relaxation_rate()
@@ -277,6 +287,9 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
     def return_env_config(self):
         env_config = super().get_default_env_config()
         env_config.update({"detuning_list": self.detuning_list,  # qubit detuning
+                           "fidelity_threshold": 0.8,
+                           "fidelity_target_switch_case": 20,
+                           "base_target_switch_case": 1000,
             #            "relaxation_rates_list": [[0.01,0.02],[0.05, 0.07]], # relaxation lists of list of floats to be sampled from when resetting environment.
             #            "relaxation_ops": [sigmam(),sigmaz()] #relaxation operator lists for T1 and T2, respectively  # qubit detuning
                            "relaxation_rates_list": self.relaxation_rates_list,
@@ -333,8 +346,8 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
     def hamiltonian2(self, detuning, alpha, gamma_magnitude, gamma_phase):
         return (detuning + alpha) * Z + gamma_magnitude * (np.cos(gamma_phase) * X + np.sin(gamma_phase) * Y)
 
-    def hamiltonian_update2(self, num_time_bins, *hamiltonian_args):
-        H2 = self.hamiltonian2(*hamiltonian_args)
+    def hamiltonian_update2(self, num_time_bins, H):
+        H2 = H
         self.H_array.append(H2)
         self.H_tot = []
         for ii, H_elem in enumerate(self.H_array):
@@ -401,13 +414,50 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
     def get_self_U(self):
         return self.U
 
-    def step(self, action):
-        num_time_bins = 2 ** (self.current_Haar_num - 1)  # Haar number decides the number of time bins
+    def get_self_episode_num(self):
+        return self.global_episode_num
 
+    def switch_target_gate(self, fidelity):
+        self.global_episode_num += 1
+        self.local_episode_num += 1
+        fidelity_threshold_reached = False
+        base_num_episodes_trained = False
+
+        if fidelity >= self.fidelity_threshold:
+            self.continuous_fidelity_count += 1
+            if self.continuous_fidelity_count >= self.fidelity_target_switch_case:
+                fidelity_threshold_reached = True
+
+        else:
+            self.continuous_fidelity_count = 0
+            fidelity_threshold_reached = False
+
+        if self.local_episode_num >= self.base_target_switch_case:
+            base_num_episodes_trained = True
+        # else:
+        #     base_num_episodes_trained = False
+
+        ##Switch Target Gate
+        if fidelity_threshold_reached and base_num_episodes_trained:
+            self.local_episode_num = 0
+            random_gate = gates.RandomSU2()
+            self.U_target = self.unitary_to_superoperator(random_gate.get_matrix())
+            self.continuous_fidelity_count = 0
+            print(
+                "\n------------------------------------------U_TARGET-----------------------------------------------------------\n")
+            print(self.U_target)
+            print(
+                "\n-------------------------------------------------------------------------------------------------------------\n")
+
+
+    def step(self, action, training=True):
+        num_time_bins = 2 ** (self.current_Haar_num - 1)  # Haar number decides the number of time bins
         # gamma is the complex amplitude of the control field
         gamma_magnitude, gamma_phase, alpha = self.parse_actions(action)
 
-        self.hamiltonian_update2(num_time_bins, self.detuning, alpha, gamma_magnitude, gamma_phase)
+        H = self.hamiltonian2(self.detuning, alpha, gamma_magnitude, gamma_phase)
+
+        self.hamiltonian_update2(num_time_bins, H)
 
         self.operator_update(num_time_bins)
 
@@ -417,6 +467,9 @@ class GateSynthEnvRLlibHaarNoisy(GateSynthEnvRLlibHaar):
         self.prev_fidelity = fidelity
 
         self.state = self.get_observation()
+
+        if training:
+            self.switch_target_gate(fidelity)
 
         self.update_transition_history(fidelity, reward, action)
 

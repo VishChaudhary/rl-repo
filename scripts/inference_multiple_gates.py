@@ -11,6 +11,8 @@ import numpy as np
 from relaqs.api.callbacks import GateSynthesisCallbacks
 import os
 import datetime
+from qutip.superoperator import liouvillian, spre, spost
+from qutip import Qobj, tensor
 from qutip.operators import *
 from relaqs.quantum_noise_data.get_data import (get_month_of_all_qubit_data,
 get_single_qubit_detuning)
@@ -43,7 +45,7 @@ def sample_noise_parameters(t1_t2_noise_file, detuning_noise_file = None):
 def createTextfile(save_filepath, inference_gate, final_gate):
     # Example variables (replace these with actual values)
     target_gate = inference_gate.get_matrix()
-    super_op_target_gate = np.kron(target_gate.conj(), target_gate)
+    super_op_target_gate = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
     file_name = save_filepath + f"{inference_gate}_self_U.txt"
     U_target_dagger = super_op_target_gate.conjugate().transpose()
 
@@ -59,53 +61,42 @@ def createTextfile(save_filepath, inference_gate, final_gate):
         f.write(f"{fidelity}\n")
 
 
-    # print(f"File '{file_name}' created successfully!")
-
 def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_inferencing = 1, save=True, plot=True, noise_file=noise_file):
 
     ray.init(num_cpus=2,   # change to your available number of CPUs
-        num_gpus=1,
+        num_gpus=0,
         include_dashboard=False,
         ignore_reinit_error=True,
         log_to_driver=False)
-    # env_config = GateSynthEnvRLlibHaarNoisy.get_default_env_config()
-    # env = GateSynthEnvRLlibHaarNoisy(env_config)
-    # register_env("my_env", env_creator)
 
     # ---------------------> Configure algorithm and Environment <-------------------------
     # Initialize default configuration
     env_config = GateSynthEnvRLlibHaarNoisy.get_default_env_config()
 
-
-    print(env_config)
-
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
-
-    # env_config["U_target"] = Gate.H
-    # target_gate = gates.RandomSU2()
-    env_config["U_target"] = train_gate.get_matrix()
-    # env_config['num_Haar_basis'] = 2
-    env_config['steps_per_Haar'] = 3
-    # inital_gate = gates.RandomSU2()
-    # env_config["U_initial"] = inital_gate.get_matrix()
     training_plot_filename = f'training_{train_gate}.png'
 
 
     # ---------------------> Get quantum noise data <-------------------------
     t1_list, t2_list, detuning_list = sample_noise_parameters(noise_file)
 
+    # ---------------------> Configure Environment <-------------------------
+    env_config["U_target"] = train_gate.get_matrix()
+    env_config['num_Haar_basis'] = 1
+    env_config['steps_per_Haar'] = 2
     env_config["relaxation_rates_list"] = [np.reciprocal(t1_list).tolist(),
                                            np.reciprocal(t2_list).tolist()]  # using real T1 data
     env_config["detuning_list"] = detuning_list
     env_config["relaxation_ops"] = [sigmam(), sigmaz()]
-
+    env_config["fidelity_threshold"] = 0.4
+    env_config["fidelity_target_switch_case"] = 1
+    env_config["base_target_switch_case"] = 7000
     env_config["verbose"] = True
 
-    # ---------------------> Configure algorithm and Environment <-------------------------
+    # ---------------------> Configure algorithm<-------------------------
     alg_config = DDPGConfig()
     alg_config.framework("torch")
     alg_config.environment(GateSynthEnvRLlibHaarNoisy, env_config=env_config)
-    # alg_config.environment(GateSynthEnvRLlibHaarNoisy, env_config=GateSynthEnvRLlibHaarNoisy.get_default_env_config())
     alg_config.callbacks(GateSynthesisCallbacks)
     alg_config.rollouts(batch_mode="complete_episodes")
     alg_config.train_batch_size = env_config["steps_per_Haar"]
@@ -113,19 +104,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     ### working 1-3 sets
     alg_config.actor_hidden_activation = "relu"
     alg_config.critic_hidden_activation = "relu"
-
     alg_config.num_steps_sampled_before_learning_starts = 1000
-
-    # ---------------------> Original Parameters <-------------------------
-    # alg_config.actor_lr = 4e-5
-    # alg_config.critic_lr = 5e-4
-    # alg_config.actor_hiddens = [30, 30, 30]
-
-    # # ---------------------> Tuned Parameters <-------------------------
-    # alg_config.actor_lr = 3.9e-5
-    # alg_config.critic_lr = 7e-4
-    # alg_config.actor_hiddens = [300] * 10
-    # alg_config.critic_hiddens = [300] * 100
 
     # ---------------------> Tuned Parameters <-------------------------
     alg_config.actor_lr = 5.057359278283752e-05
@@ -133,24 +112,6 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     alg_config.actor_hiddens = [200] * 10
     alg_config.critic_hiddens = [100] * 10
 
-    # alg_config.actor_hiddens = [300] * 100
-    # alg_config.critic_hiddens = [50] * 100
-
-    # alg_config.actor_lr = 2.4504577983521047e-05
-    # alg_config.critic_lr = 1.093375447928076e-05
-
-    # alg_config.actor_hiddens = [200] * 3
-
-
-    # alg_config.critic_hiddens = [100] * 3
-
-
-
-    # # ---------------------> Sanya's Parameters <-------------------------
-    # alg_config.actor_lr = 2.65e-05
-    # alg_config.critic_lr = 9.35e-05
-    # alg_config.actor_hiddens = [300, 300, 300]
-    # alg_config.critic_hiddens = [50,50,50]
 
     # ---------------------> Slightly Higher Fidelity/Reward <-------------------------
     alg_config.exploration_config["random_timesteps"] = 3055.8304716435505
@@ -158,7 +119,8 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     alg_config.exploration_config["ou_theta"] = 0.31360827370009975
     alg_config.exploration_config["ou_sigma"] = 0.26940347674578985
     alg_config.exploration_config["initial_scale"] = 1.469323660064391
-    alg_config.exploration_config["scale_timesteps"] = 19885.54898737561
+    # alg_config.exploration_config["scale_timesteps"] = 19885.54898737561
+    alg_config.exploration_config["scale_timesteps"] = 10123.97829415627
 
     # ---------------------> Close  Second Fidelity/Reward Parameters <-------------------------
     # alg_config.exploration_config["random_timesteps"] = 4673.765975569726
@@ -174,16 +136,16 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
 
     # ---------------------> Train Agent <-------------------------
-    # for _ in range(n_training_iterations):
-    #     result = alg.train()
     results = [alg.train() for _ in range(n_training_iterations)]
     # -------------------------------------------------------------
 
     train_alg = alg
+    train_env = train_alg.workers.local_worker().env
+    num_steps_done = train_env.get_self_episode_num()
 
     # ---------------------> Save/Plot Training Results <-------------------------
     if save and plot is True:
-        train_env = train_alg.workers.local_worker().env
+        # train_env = train_alg.workers.local_worker().env
         sr = SaveResults(train_env, train_alg, save_path=save_filepath,
                          target_gate_string=f"Noisy_Train-{str(train_gate)}, Inference-{str(inference_gate)}")
         save_dir = sr.save_results()
@@ -210,7 +172,10 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
             createTextfile(save_filepath, inferencing_gate, final_gate_kron)
             print("Results saved to:", save_dir)
         # --------------------------------------------------------------
-
+    print(f'Num times steps called: {num_steps_done}\nWhile training for training iterations num: {n_training_iterations}\n')
+    num_haar_basis = env_config['num_Haar_basis']
+    num_steps_haar = env_config['steps_per_Haar']
+    print(f'Num Haar basis: {num_haar_basis}\nNum steps per haar: {num_steps_haar}')
 
 
 
@@ -227,15 +192,13 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
     inference_env_config = env.return_env_config()
     inference_env_config["U_target"] = inferencing_gate.get_matrix()  # Set new target gate for inference
     print(f'U_target:\n{inference_env_config["U_target"]}\n\n')
-    # inference_env_config["observation_space_size"] = 36  # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rate + 1 for detuning
     inference_env = GateSynthEnvRLlibHaarNoisy(inference_env_config)
 
     num_episodes = 0
     episode_reward = 0.0
     print("Inferencing on a different gate is starting ....")
     print("*************************************************************************************************")
-    # print("---------------------------------------------Initial Self.U---------------------------------------------")
-    # print(inference_env.get_self_U())
+
     obs, info = inference_env.reset()  # Start with the inference environment
     final_gate_kron = []
     while num_episodes < n_episodes_for_inferencing:
@@ -246,7 +209,7 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
             policy_id="default_policy",  # <- default value
         )
         # Send the computed action `action` to the env.
-        obs, reward, done, truncated, _ = inference_env.step(action)
+        obs, reward, done, truncated, _ = inference_env.step(action, False)
         episode_reward += reward
         print("####################################################")
         final_gate_kron = np.array(inference_env.get_self_U())
@@ -262,8 +225,8 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
 
 
 if __name__ == "__main__":
-    n_training_iterations = 25
-    n_episodes_for_inferencing = 25
+    n_training_iterations = 75
+    n_episodes_for_inferencing = 100
 
     save = True
     plot = True

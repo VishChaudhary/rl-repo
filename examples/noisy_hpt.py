@@ -21,12 +21,12 @@ def run_ray_tune(environment, n_configurations=100, n_training_iterations=50, sa
 
     search_space = {"environment" : environment,
                     "n_training_iterations" : n_training_iterations,
-                    "random_timesteps": tune.uniform(100, 10_000),
+                    "random_timesteps": tune.uniform(100, 10000),
                     "ou_base_scale": tune.uniform(0.01, 0.5),
                     "ou_theta": tune.uniform(0.05, 0.5),
                     "ou_sigma": tune.uniform(0.05, 0.5),
                     "initial_scale": tune.uniform(0.1, 2.0),
-                    "scale_timesteps": tune.uniform(1000, 20_000),
+                    "scale_timesteps": tune.uniform(1000, 20000),
                     }
 
     algo = OptunaSearch()
@@ -84,8 +84,8 @@ def objective(config):
 
 if __name__ == "__main__":
     environment = GateSynthEnvRLlibHaarNoisy
-    n_configurations = 100
-    n_training_iterations = 50
+    n_configurations = 10
+    n_training_iterations = 5
     save = True
     run_ray_tune(environment, n_configurations, n_training_iterations, save)
     ray.shutdown() # not sure if this is required

@@ -1,6 +1,6 @@
 .DS_Store
 __pycache__
 .relaqs.egg-info
-results/
-ray/
+/results/
 gradfile
+/ray/

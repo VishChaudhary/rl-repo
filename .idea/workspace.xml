@@ -7,6 +7,9 @@
     <list default="true" id="bbf65562-43d2-422f-9617-fd7869eb4604" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/noisy_hpt.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/noisy_hpt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/inference_multiple_gates.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/inference_multiple_gates.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -89,7 +92,7 @@
       <recent name="$PROJECT_DIR$/ray" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.gate_synth_env_rllib_Haar">
+  <component name="RunManager" selected="Python.inference_multiple_gates">
     <configuration name="gate_synth_env_rllib_Haar" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="rl-repo" />
       <option name="ENV_FILES" value="" />
@@ -207,8 +210,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.gate_synth_env_rllib_Haar" />
         <item itemvalue="Python.inference_multiple_gates" />
+        <item itemvalue="Python.gate_synth_env_rllib_Haar" />
         <item itemvalue="Python.hyperparameter_tuning" />
         <item itemvalue="Python.noisy_hpt" />
         <item itemvalue="Python.sort_hyperparameter" />
@@ -247,7 +250,12 @@
       <workItem from="1732904182396" duration="3176000" />
       <workItem from="1733090217906" duration="45507000" />
       <workItem from="1733359390300" duration="4418000" />
-      <workItem from="1733764732331" duration="1905000" />
+      <workItem from="1733764732331" duration="2333000" />
+      <workItem from="1733767231928" duration="1044000" />
+      <workItem from="1733795196425" duration="17006000" />
+      <workItem from="1734022067803" duration="2798000" />
+      <workItem from="1734419766272" duration="15628000" />
+      <workItem from="1734481555446" duration="7781000" />
     </task>
     <servers />
   </component>
@@ -265,6 +273,47 @@
       </map>
     </option>
   </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py</url>
+          <line>419</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py</url>
+          <line>425</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py</url>
+          <line>430</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py</url>
+          <line>434</line>
+          <option name="timeStamp" value="4" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py</url>
+          <line>440</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py</url>
+          <line>470</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py</url>
+          <line>471</line>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/rl_repo$run_and_save_v3.coverage" NAME="run_and_save_v3 Coverage Results" MODIFIED="1730692017205" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/rl_repo$hyperparameter_tuning.coverage" NAME="hyperparameter_tuning Coverage Results" MODIFIED="1733164291453" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples" />
@@ -274,7 +323,7 @@
     <SUITE FILE_PATH="coverage/rl_repo$noisy_single_qubit_env.coverage" NAME="noisy_single_qubit_env Coverage Results" MODIFIED="1727292096407" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/relaqs/environments" />
     <SUITE FILE_PATH="coverage/rl_repo$gate_synth_env_rllib_Haar.coverage" NAME="gate_synth_env_rllib_Haar Coverage Results" MODIFIED="1733362228296" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/relaqs/environments" />
     <SUITE FILE_PATH="coverage/rl_repo$noisy_hpt.coverage" NAME="noisy_hpt Coverage Results" MODIFIED="1733102291924" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples" />
-    <SUITE FILE_PATH="coverage/rl_repo$inference_multiple_gates.coverage" NAME="inference_multiple_gates Coverage Results" MODIFIED="1733249872189" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
+    <SUITE FILE_PATH="coverage/rl_repo$inference_multiple_gates.coverage" NAME="inference_multiple_gates Coverage Results" MODIFIED="1734643309084" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/rl_repo$__init__.coverage" NAME="__init__ Coverage Results" MODIFIED="1728347036252" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/relaqs" />
     <SUITE FILE_PATH="coverage/rl_repo$bloch_sphere.coverage" NAME="bloch_sphere Coverage Results" MODIFIED="1728862128995" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/relaqs/visualization" />
     <SUITE FILE_PATH="coverage/rl_repo$visulaize_Haar.coverage" NAME="visulaize_Haar Coverage Results" MODIFIED="1729621431403" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/relaqs/visualization" />
