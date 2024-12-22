@@ -5,11 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="bbf65562-43d2-422f-9617-fd7869eb4604" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/ray" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/noisy_hpt.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/noisy_hpt.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/inference_multiple_gates.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/inference_multiple_gates.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/relaqs/environments/gate_synth_env_rllib_Haar.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -255,7 +253,7 @@
       <workItem from="1733795196425" duration="17006000" />
       <workItem from="1734022067803" duration="2798000" />
       <workItem from="1734419766272" duration="15628000" />
-      <workItem from="1734481555446" duration="7781000" />
+      <workItem from="1734481555446" duration="9850000" />
     </task>
     <servers />
   </component>
