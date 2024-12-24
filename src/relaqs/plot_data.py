@@ -53,7 +53,7 @@ def plot_results(save_dir, figure_title=""):
     plt.savefig(save_dir + "gradient_and_q_values.png")
 
 
-def plot_data(save_dir, episode_length, figure_title=''):
+def plot_data(save_dir, episode_length, figure_title='', plot_filename = 'plot.png'):
     """ Currently works for constant episode_length """
     #---------------------- Getting data from files  <--------------------------------------
     df = pd.read_csv(save_dir + "env_data.csv", header=0)
@@ -136,7 +136,7 @@ def plot_data(save_dir, episode_length, figure_title=''):
     ax3.set_xlabel("Episodes")
     
     plt.tight_layout()
-    plt.savefig(save_dir + "plot.png")
+    plt.savefig(save_dir + plot_filename)
 
 if __name__ == "__main__":
     save_dir = RESULTS_DIR + "2024-02-27_19-31-17_H/"
