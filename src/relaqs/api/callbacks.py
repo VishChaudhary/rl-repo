@@ -5,7 +5,7 @@ from ray.rllib.evaluation import Episode, RolloutWorker
 from ray.rllib.policy import Policy
 from ray.rllib.policy.sample_batch import SampleBatch
 import torch
-from  torch.linalg import vector_norm
+from torch.linalg import vector_norm
 from typing import Dict, Tuple
 
 class GateSynthesisCallbacks(DefaultCallbacks):
@@ -20,6 +20,14 @@ class GateSynthesisCallbacks(DefaultCallbacks):
         **kwargs
     ):
         worker.env.episode_id = episode.episode_id
+        # try:
+        #     alg_config = worker.policy_map["default_policy"].config
+        #     alg_config["exploration_config"]["random_timesteps"] = 3000
+        #     alg_config["exploration_config"]["ou_base_scale"] = 0.3
+        #
+        # except Exception as e:
+        #     print("No default policy found")
+
         episode.hist_data["q_values"]= []
         episode.hist_data["grad_gnorm"] = []
         episode.hist_data["average_gradnorm"] =[]
@@ -38,6 +46,13 @@ class GateSynthesisCallbacks(DefaultCallbacks):
             **kwargs
         ):
         print("-------------------post processing batch------------------------------------------------")
+        # alg_config = worker.policy_map["default_policy"].config
+        # alg_config["exploration_config"]["random_timesteps"] = 3000
+        # alg_config["exploration_config"]["ou_base_scale"] = 0.3
+        # alg_config["env_config"]["someParameter"] = someVal
+
+
+        # print(f'alg_config:\n{alg_config}')
         if "num_batches" not in episode.custom_metrics:
             episode.custom_metrics["num_batches"] = 0
         episode.custom_metrics["num_batches"] += 1

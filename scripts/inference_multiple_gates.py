@@ -8,57 +8,19 @@ from relaqs.save_results import SaveResults
 from relaqs.plot_data import plot_data
 import relaqs.api.gates as gates
 import numpy as np
+import pandas as pd
 from relaqs.api.callbacks import GateSynthesisCallbacks
 import os
 import datetime
 from qutip.superoperator import liouvillian, spre, spost
 from qutip import Qobj, tensor
 from qutip.operators import *
-from relaqs.quantum_noise_data.get_data import (get_month_of_all_qubit_data,
-get_single_qubit_detuning)
+import copy
+from relaqs.api.utils import *
 
-# path_to_relaqs_root = os.path.dirname(os.path.realpath(__file__))
 path_to_relaqs_root = '/Users/vishchaudhary/rl-repo/src/relaqs'
 QUANTUM_NOISE_DATA_DIR = path_to_relaqs_root + "/quantum_noise_data/"
 noise_file = "april/ibmq_belem_month_is_4.json"
-# inferencing_noise_file = "april/ibmq_manila_month_is_4.json"
-
-# def env_creator(config):
-#     return NoisySingleQubitEnv(config)
-
-
-def sample_noise_parameters(t1_t2_noise_file, detuning_noise_file = None):
-    # ---------------------> Get quantum noise data <-------------------------
-    t1_list, t2_list = get_month_of_all_qubit_data(QUANTUM_NOISE_DATA_DIR + t1_t2_noise_file)        #in seconds
-
-    if detuning_noise_file is None:
-        mean = 0
-        std = 0.03
-        sample_size = 100
-        samples = np.random.normal(mean, std, sample_size)
-        detunings = samples.tolist()
-    else:
-        detunings = get_single_qubit_detuning(QUANTUM_NOISE_DATA_DIR + detuning_noise_file)
-
-    return t1_list, t2_list, detunings
-
-def createTextfile(save_filepath, inference_gate, final_gate):
-    # Example variables (replace these with actual values)
-    target_gate = inference_gate.get_matrix()
-    super_op_target_gate = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
-    file_name = save_filepath + f"{inference_gate}_self_U.txt"
-    U_target_dagger = super_op_target_gate.conjugate().transpose()
-
-    fidelity = float(np.abs(np.trace(U_target_dagger @ final_gate))) / (final_gate.shape[0])
-
-    # Write to file
-    with open(file_name, "w") as f:
-        f.write("self.U:\n")
-        f.write(f"{final_gate}\n\n")
-        f.write("self.U_target:\n")
-        f.write(f"{super_op_target_gate}\n\n")
-        f.write(f"Fidelity:\n")
-        f.write(f"{fidelity}\n")
 
 
 def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_inferencing = 1, save=True, plot=True, noise_file=noise_file):
@@ -84,14 +46,19 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     env_config["U_target"] = train_gate.get_matrix()
     env_config['num_Haar_basis'] = 1
     env_config['steps_per_Haar'] = 2
+
+    #************************************************************************************************************************************************#
     ###Check what the need for np.reciprocal is bc the default is not like that
-    env_config["relaxation_rates_list"] = [np.reciprocal(t1_list).tolist(),
-                                           np.reciprocal(t2_list).tolist()]  # using real T1 data
+    # env_config["relaxation_rates_list"] = [np.reciprocal(t1_list).tolist(),
+    #                                        np.reciprocal(t2_list).tolist()]  # using real T1 data
+    env_config["relaxation_rates_list"] = [t1_list, t2_list]  # using real T1 data
+    #************************************************************************************************************************************************#
+
     env_config["detuning_list"] = detuning_list
     env_config["relaxation_ops"] = [sigmam(), sigmaz()]
-    env_config["fidelity_threshold"] = 0.65
+    env_config["fidelity_threshold"] = 0.7
     env_config["fidelity_target_switch_case"] = 30
-    env_config["base_target_switch_case"] = 5000
+    env_config["base_target_switch_case"] = 4000
     env_config["verbose"] = True
 
     # ---------------------> Configure algorithm<-------------------------
@@ -113,7 +80,6 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     alg_config.actor_hiddens = [200] * 10
     alg_config.critic_hiddens = [100] * 10
 
-
     # ---------------------> Slightly Higher Fidelity/Reward <-------------------------
     alg_config.exploration_config["random_timesteps"] = 3055.8304716435505
     alg_config.exploration_config["ou_base_scale"] = 0.33536897625927453
@@ -121,7 +87,8 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     alg_config.exploration_config["ou_sigma"] = 0.26940347674578985
     alg_config.exploration_config["initial_scale"] = 1.469323660064391
     # alg_config.exploration_config["scale_timesteps"] = 19885.54898737561
-    alg_config.exploration_config["scale_timesteps"] = 10123.97829415627
+    # alg_config.exploration_config["scale_timesteps"] = 10123.97829415627
+    alg_config.exploration_config["scale_timesteps"] = n_training_iterations * 1000
 
     # ---------------------> Close  Second Fidelity/Reward Parameters <-------------------------
     # alg_config.exploration_config["random_timesteps"] = 4673.765975569726
@@ -130,6 +97,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # alg_config.exploration_config["ou_sigma"] = 0.11462192187335964
     # alg_config.exploration_config["initial_scale"] = 0.5497884198832642
     # alg_config.exploration_config["scale_timesteps"] = 10123.97829415627
+
 
     print(f'\nalg_config:\n{alg_config}\n')
     alg = alg_config.build()
@@ -140,23 +108,36 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     results = [alg.train() for _ in range(n_training_iterations)]
     # -------------------------------------------------------------
 
+    train_env = alg.workers.local_worker().env
     train_alg = alg
-    train_env = train_alg.workers.local_worker().env
     num_steps_done = train_env.get_self_episode_num()
+
+    episodes_target_switch = train_env.get_episodes_gate_switch()
+    original_episodes_target_switch = episodes_target_switch.copy()
+    total_Haar_nums = env_config["steps_per_Haar"] * env_config["num_Haar_basis"]
+
+    for idx in range(len(episodes_target_switch)):
+        episode = episodes_target_switch[idx]
+        episode = int((episode - env_config["steps_per_Haar"]) / total_Haar_nums)
+        episodes_target_switch[idx] = episode
+
+
 
     # ---------------------> Save/Plot Training Results <-------------------------
     if save and plot is True:
-        # train_env = train_alg.workers.local_worker().env
-        sr = SaveResults(train_env, train_alg, save_path=save_filepath,
+        sr = SaveResults(train_env, alg, save_path=save_filepath,
                          target_gate_string=f"Noisy_Train-{str(train_gate)}, Inference-{str(inference_gate)}")
         save_dir = sr.save_results()
         plot_data(save_dir, plot_filename=training_plot_filename,
-                  episode_length=train_alg._episode_history[0].episode_length,
-                  figure_title=f"[NOISY] Training on {str(train_gate)}")
+                  episode_length=alg._episode_history[0].episode_length,
+                  figure_title=f"[NOISY] Training on {str(train_gate)}", gate_switch_array= episodes_target_switch)
         print("Results saved to:", save_dir)
     # --------------------------------------------------------------
 
+    config_table(env_config, alg_config, save_filepath)
+
     for inferencing_gate in inference_gate:
+        # train_alg = copy.deepcopy(alg)
         inferencing_plot_filename = f'inferencing_{inferencing_gate}.png'
         # -----------------------> Inferencing <---------------------------
         env = train_alg.workers.local_worker().env
@@ -170,15 +151,17 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
             plot_data(save_dir, plot_filename=inferencing_plot_filename,
                       episode_length=alg._episode_history[0].episode_length,
                       figure_title=f"[NOISY] Inferencing on {str(inferencing_gate)} (Previously Trained on {str(train_gate)})")
-            createTextfile(save_filepath, inferencing_gate, final_gate_kron)
+            create_self_U_textfile(save_filepath, inferencing_gate, final_gate_kron)
             print("Results saved to:", save_dir)
         # --------------------------------------------------------------
     print(f'Num times steps called: {num_steps_done}\nWhile training for training iterations num: {n_training_iterations}\n')
     num_haar_basis = env_config['num_Haar_basis']
     num_steps_haar = env_config['steps_per_Haar']
     print(f'Num Haar basis: {num_haar_basis}\nNum steps per haar: {num_steps_haar}')
+    print(f'Type: {type(train_env)}')
+    print(f'Original Switching Array: {original_episodes_target_switch}')
+    print(f'Adjusted Switching Array: {episodes_target_switch}')
     ray.shutdown()
-
 
 
 def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
@@ -226,13 +209,13 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
 
 
 if __name__ == "__main__":
-    n_training_iterations = 30
-    n_episodes_for_inferencing = 100
+    n_training_iterations = 100
+    n_episodes_for_inferencing = 50
 
     save = True
     plot = True
 
     train_gate = gates.RandomSU2()
 
-    inferencing_gate = [gates.X_pi_4(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(), gates.RandomSU2(), gates.I()]
+    inferencing_gate = [gates.I(), gates.X_pi_4(), gates.X(), gates.Z(), gates.H(), gates.S(), gates.RandomSU2(), gates.Y()]
     run(train_gate, inferencing_gate, n_training_iterations, n_episodes_for_inferencing, save, plot, noise_file)

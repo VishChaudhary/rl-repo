@@ -39,6 +39,7 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         self.original_U_target = env_config["U_target"]
         self.U_target = self.unitary_to_superoperator(env_config["U_target"])
         self.U_initial = self.unitary_to_superoperator(env_config["U_initial"])
+        self.episode_switched = []
         self.global_episode_num = 0
         self.local_episode_num = 0
         self.fidelity_threshold = env_config["fidelity_threshold"]
@@ -69,7 +70,7 @@ class NoisySingleQubitEnv(SingleQubitEnv):
 
     def detuning_update(self):
         # Random detuning selection
-        if len(self.detuning_list)==1:
+        if len(self.detuning_list) == 1:
             self.detuning = self.detuning_list[0]
         else:
             self.detuning = random.sample(self.detuning_list, k=1)[0]
@@ -150,14 +151,18 @@ class NoisySingleQubitEnv(SingleQubitEnv):
     def get_self_episode_num(self):
         return self.global_episode_num
 
+    def get_episodes_gate_switch(self):
+        return self.episode_switched
+
     def switch_target_gate(self, fidelity):
         self.global_episode_num += 1
         self.local_episode_num += 1
         fidelity_threshold_reached = False
         base_num_episodes_trained = False
-        haar_val = self.current_Haar_num * self.current_Haar_num
+        haar_val = self.current_Haar_num * self.current_step_per_Haar
         fidelity_count_idx = haar_val - 1
         num_vals_needed = (haar_val + 1) // 2
+        vals_above_fidelity_count = 0
 
         if fidelity >= self.fidelity_threshold:
             self.continuous_fidelity_count[fidelity_count_idx] += 1
@@ -165,7 +170,11 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         else:
             self.continuous_fidelity_count[fidelity_count_idx] = 0
 
-        vals_above_fidelity_count = sum(val >= self.fidelity_target_switch_case for val in self.continuous_fidelity_count)
+        # vals_above_fidelity_count = sum(val >= self.fidelity_target_switch_case for val in self.continuous_fidelity_count)
+        for val in self.continuous_fidelity_count:
+            if val >= self.fidelity_target_switch_case:
+                vals_above_fidelity_count += 1
+
         if vals_above_fidelity_count >= num_vals_needed:
             fidelity_threshold_reached = True
 
@@ -179,12 +188,13 @@ class NoisySingleQubitEnv(SingleQubitEnv):
 
             random_gate = gates.RandomSU2()
             self.U_target = self.unitary_to_superoperator(random_gate.get_matrix())
+            self.episode_switched.append(self.global_episode_num)
 
             print(
-                "\n------------------------------------------U_TARGET-----------------------------------------------------------\n")
+                "\n----------------------------------------------------------------------------U_TARGET-------------------------------------------------------------------------------------------------------------\n")
             print(self.U_target)
             print(
-                "\n-------------------------------------------------------------------------------------------------------------\n")
+                "\n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n")
 
 
     ###Obviously update this
@@ -214,7 +224,9 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         truncated, terminated = self.is_episode_over(fidelity)
 
         if self.verbose is True:
+            print(f'------------Step call: {self.global_episode_num}-----------------------')
             print(self.get_info(fidelity, reward, action, truncated, terminated))
+
 
         self.Haar_update()
 

@@ -5,6 +5,8 @@ from numpy.linalg import eigvalsh
 from scipy.linalg import sqrtm
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ddpg import DDPGConfig
+from qutip.superoperator import liouvillian, spre, spost
+from qutip import Qobj, tensor
 from relaqs import RESULTS_DIR
 from relaqs.quantum_noise_data.get_data import (get_month_of_all_qubit_data, get_single_qubit_detuning)
 from relaqs.api.callbacks import GateSynthesisCallbacks
@@ -15,6 +17,123 @@ vec = lambda X : X.reshape(-1, 1, order="F") # vectorization operation, column-o
 vec_inverse = lambda X : X.reshape(int(np.sqrt(X.shape[0])),
                                    int(np.sqrt(X.shape[0])),
                                    order="F") # inverse vectorization operation, column-order. X is a numpy array.
+
+def create_self_U_textfile(save_filepath, inference_gate, final_gate):
+    # Example variables (replace these with actual values)
+    target_gate = inference_gate.get_matrix()
+    super_op_target_gate = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
+    file_name = save_filepath + f"{inference_gate}_self_U.txt"
+    U_target_dagger = super_op_target_gate.conjugate().transpose()
+
+    fidelity = float(np.abs(np.trace(U_target_dagger @ final_gate))) / (final_gate.shape[0])
+
+    # Write to file
+    with open(file_name, "w") as f:
+        f.write("self.U:\n")
+        f.write(f"{final_gate}\n\n")
+        f.write("self.U_target:\n")
+        f.write(f"{super_op_target_gate}\n\n")
+        f.write(f"Fidelity:\n")
+        f.write(f"{fidelity}\n")
+
+
+def network_config_creator(alg_config):
+
+    network_config = {
+        "actor_lr":  alg_config.actor_lr,
+        "actor_hidden_activation": alg_config.actor_hidden_activation,
+        "critic_hidden_activation": alg_config.critic_hidden_activation,
+        "critc_lr": alg_config.critic_lr,
+        "actor_num_hidden_layers": len(alg_config.actor_hiddens),
+        "actor_num_hidden_neurons":  alg_config.actor_hiddens[0],
+        "critc_num_hidden_layers": len(alg_config.critic_hiddens),
+        "critc_num_hidden_neurons":  alg_config.critic_hiddens[0],
+        "num_steps_sampled_before_learning_starts": alg_config.num_steps_sampled_before_learning_starts
+    }
+
+    return network_config
+
+
+def config_table(env_config, alg_config, filepath):
+    filtered_env_config = {}
+    filtered_explor_config = {}
+    network_config = network_config_creator(alg_config)
+
+    env_config_default = {
+        "num_Haar_basis": 1,
+        "steps_per_Haar": 2,
+        "fidelity_threshold": 0.8,
+        "fidelity_target_switch_case": 20,
+        "base_target_switch_case": 1000
+    }
+
+    network_config_default = {
+        "actor_lr": 1e-3,
+        "actor_hidden_activation": "relu",
+        "critic_hidden_activation": "relu",
+        "critc_lr": 1e-3,
+        "actor_num_hidden_layers": "2",
+        "actor_num_hidden_neurons": "[400,300]",
+        "critc_num_hidden_layers": "2",
+        "critc_num_hidden_neurons": "[400,300]",
+        "num_steps_sampled_before_learning_starts": 1500
+    }
+
+    explor_config_default = {
+        "random_timesteps": 1000,
+        "ou_base_scale": 0.1,
+        "ou_theta": 0.15,
+        "ou_sigma": 0.2,
+        "initial_scale": 1.0,
+        "scale_timesteps": 10000
+    }
+
+    for key in env_config_default.keys():
+        filtered_env_config[key] = env_config[key]
+
+    for key in explor_config_default.keys():
+        filtered_explor_config[key] = alg_config.exploration_config[key]
+
+    env_data = {
+        "Config Name": list(filtered_env_config.keys()),
+        "Current Value": list(filtered_env_config.values()),
+        "Default Value": list(env_config_default.values()),
+    }
+
+    network_data = {
+        "Config Name": list(network_config.keys()),
+        "Current Value": list(network_config.values()),
+        "Default Value": list(network_config_default.values()),
+    }
+
+    explor_data = {
+        "Config Name": list(filtered_explor_config.keys()),
+        "Current Value": list(filtered_explor_config.values()),
+        "Default Value": list(explor_config_default.values()),
+    }
+
+    env_df = pd.DataFrame(env_data)
+    network_df = pd.DataFrame(network_data)
+    explor_df = pd.DataFrame(explor_data)
+
+    with open(filepath + "config_table.txt", "w") as f:
+        # Write the table header with a border
+        f.write("+------------------------------------------------+----------------------+--------------------+\n")
+        f.write("|                  Config Name                   |     Current Value    |    Default Value   |\n")
+        f.write("+------------------------------------------------+----------------------+--------------------+\n")
+
+        for index, row in env_df.iterrows():
+            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <20} | {row['Default Value']: <17} |\n")
+        f.write("+------------------------------------------------+----------------------+--------------------+\n")
+
+        for index, row in explor_df.iterrows():
+            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <20} | {row['Default Value']: <17} |\n")
+        f.write("+------------------------------------------------+----------------------+--------------------+\n")
+
+        for index, row in network_df.iterrows():
+            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <20} | {row['Default Value']: <17} |\n")
+        f.write("+------------------------------------------------+----------------------+--------------------+\n")
+
 
 def normalize(quantity, list_of_values):
     """ normalize quantity to [0, 1] range based on list of values """

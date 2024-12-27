@@ -53,7 +53,7 @@ def plot_results(save_dir, figure_title=""):
     plt.savefig(save_dir + "gradient_and_q_values.png")
 
 
-def plot_data(save_dir, episode_length, figure_title='', plot_filename = 'plot.png'):
+def plot_data(save_dir, episode_length, figure_title='', plot_filename = 'plot.png', gate_switch_array = None):
     """ Currently works for constant episode_length """
     #---------------------- Getting data from files  <--------------------------------------
     df = pd.read_csv(save_dir + "env_data.csv", header=0)
@@ -119,6 +119,9 @@ def plot_data(save_dir, episode_length, figure_title='', plot_filename = 'plot.p
     ax1.set_title("Fidelity")
     ax1.set_title("a)", loc='left', fontsize='medium')
     ax1.set_xlabel("Episodes")
+    if gate_switch_array:
+        for episode in gate_switch_array:
+            ax1.axvline(x=episode, color='y', linestyle='--')
 
     # ----> infidelity <----
     ax2.plot(final_infelity_per_episode, color="r")
@@ -127,6 +130,9 @@ def plot_data(save_dir, episode_length, figure_title='', plot_filename = 'plot.p
     ax2.set_title("1 - Fidelity (log scale)")
     ax2.set_title("b)", loc='left', fontsize='medium')
     ax2.set_xlabel("Episodes")
+    if gate_switch_array:
+        for episode in gate_switch_array:
+            ax2.axvline(x=episode, color='y', linestyle='--')
 
     # ----> reward <----
     ax3.plot(sum_of_rewards_per_episode, color="g")
@@ -134,6 +140,9 @@ def plot_data(save_dir, episode_length, figure_title='', plot_filename = 'plot.p
     ax3.set_title("Sum of Rewards")
     ax3.set_title("c)", loc='left', fontsize='medium')
     ax3.set_xlabel("Episodes")
+    if gate_switch_array:
+        for episode in gate_switch_array:
+            ax3.axvline(x=episode, color='y', linestyle='--')
     
     plt.tight_layout()
     plt.savefig(save_dir + plot_filename)
