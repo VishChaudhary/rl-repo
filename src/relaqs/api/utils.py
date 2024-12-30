@@ -54,7 +54,7 @@ def network_config_creator(alg_config):
     return network_config
 
 
-def config_table(env_config, alg_config, filepath):
+def config_table(env_config, alg_config, filepath, plot_target_change):
     filtered_env_config = {}
     filtered_explor_config = {}
     network_config = network_config_creator(alg_config)
@@ -64,7 +64,9 @@ def config_table(env_config, alg_config, filepath):
         "steps_per_Haar": 2,
         "fidelity_threshold": 0.8,
         "fidelity_target_switch_case": 20,
-        "base_target_switch_case": 1000
+        "base_target_switch_case": 1000,
+        "threshold_based_training": False,
+        "switch_every_episode": False
     }
 
     network_config_default = {
@@ -133,7 +135,7 @@ def config_table(env_config, alg_config, filepath):
         for index, row in network_df.iterrows():
             f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <20} | {row['Default Value']: <17} |\n")
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
-
+        f.write(f"Plot when target changes: {plot_target_change}\n")
 
 def normalize(quantity, list_of_values):
     """ normalize quantity to [0, 1] range based on list of values """
