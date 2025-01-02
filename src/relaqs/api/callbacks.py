@@ -45,8 +45,10 @@ class GateSynthesisCallbacks(DefaultCallbacks):
             original_batches: Dict[str, Tuple[Policy, SampleBatch]],
             **kwargs
         ):
-        print("-------------------post processing batch------------------------------------------------")
-        # alg_config = worker.policy_map["default_policy"].config
+        alg_config = worker.policy_map["default_policy"].config
+        verbose = alg_config["env_config"]["verbose"]
+        if verbose:
+            print("-------------------post processing batch------------------------------------------------")
         # alg_config["exploration_config"]["random_timesteps"] = 3000
         # alg_config["exploration_config"]["ou_base_scale"] = 0.3
         # alg_config["env_config"]["someParameter"] = someVal

@@ -70,11 +70,14 @@ class SingleQubitEnv(gym.Env):
         if fidelity >= 1:
             print(
                 f"FIDELITY HIGHER THAN 1--------------------------------------------------------------------------------------------------------\n{fidelity}\n")
-            fidelity = 0.99871379
         return fidelity
 
     def compute_reward(self, fidelity):
-        return (-3 * np.log10(1.0 - fidelity) + np.log10(1.0 - self.prev_fidelity)) + (3 * fidelity - self.prev_fidelity)
+        if fidelity >= 1:
+            print(f'Giving max reward---------------------------------------*****************************************************-----------------------------------------------------------------\n')
+            return 35
+        else:
+            return (-3 * np.log10(1.0 - fidelity) + np.log10(1.0 - self.prev_fidelity)) + (3 * fidelity - self.prev_fidelity)
         
     def hamiltonian(self, alpha, gamma_magnitude, gamma_phase):
         return alpha*Z + gamma_magnitude*(np.cos(gamma_phase)*X + np.sin(gamma_phase)*Y)

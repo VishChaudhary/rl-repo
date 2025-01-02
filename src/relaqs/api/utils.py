@@ -12,11 +12,15 @@ from relaqs.quantum_noise_data.get_data import (get_month_of_all_qubit_data, get
 from relaqs.api.callbacks import GateSynthesisCallbacks
 from relaqs import QUANTUM_NOISE_DATA_DIR
 from qutip.operators import *
+from datetime import datetime
 
 vec = lambda X : X.reshape(-1, 1, order="F") # vectorization operation, column-order. X is a numpy array.
 vec_inverse = lambda X : X.reshape(int(np.sqrt(X.shape[0])),
                                    int(np.sqrt(X.shape[0])),
                                    order="F") # inverse vectorization operation, column-order. X is a numpy array.
+
+def get_time():
+    return datetime.now()
 
 def create_self_U_textfile(save_filepath, inference_gate, final_gate):
     # Example variables (replace these with actual values)
@@ -54,7 +58,7 @@ def network_config_creator(alg_config):
     return network_config
 
 
-def config_table(env_config, alg_config, filepath, plot_target_change):
+def config_table(env_config, alg_config, filepath, plot_target_change, n_training_iterations, continue_training=False, original_training_date = None):
     filtered_env_config = {}
     filtered_explor_config = {}
     network_config = network_config_creator(alg_config)
@@ -125,17 +129,22 @@ def config_table(env_config, alg_config, filepath, plot_target_change):
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
 
         for index, row in env_df.iterrows():
-            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <20} | {row['Default Value']: <17} |\n")
+            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <21} | {row['Default Value']: <18} |\n")
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
 
         for index, row in explor_df.iterrows():
-            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <20} | {row['Default Value']: <17} |\n")
+            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <21} | {row['Default Value']: <18} |\n")
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
 
         for index, row in network_df.iterrows():
-            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <20} | {row['Default Value']: <17} |\n")
+            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <21} | {row['Default Value']: <18} |\n")
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
         f.write(f"Plot when target changes: {plot_target_change}\n")
+        f.write(f"N Training Iterations: {n_training_iterations}\n")
+        f.write(f"Continuation from previous training: {continue_training}")
+        if continue_training:
+            f.write(f"Training continued from results on: {original_training_date}\n")
+
 
 def normalize(quantity, list_of_values):
     """ normalize quantity to [0, 1] range based on list of values """
@@ -199,38 +208,38 @@ def sample_noise_parameters(t1_t2_noise_file=None, detuning_noise_file=None):
 
     return list(t1_list), list(t2_list), detunings
 
-def do_inferencing(alg, n_episodes_for_inferencing, quantum_noise_file_path):
-    """
-    alg: The trained model
-    n_episodes_for_inferencing: Number of episodes to do during the training
-    """
-    
-    assert n_episodes_for_inferencing > 0
-    env = return_env_from_alg(alg)
-    obs, info = env.reset()
-    t1_list, t2_list, detuning_list = sample_noise_parameters(quantum_noise_file_path)
-    env.relaxation_rates_list = [np.reciprocal(t1_list).tolist(), np.reciprocal(t2_list).tolist()]
-    env.detuning_list = detuning_list
-    num_episodes = 0
-    episode_reward = 0.0
-    print("Inferencing is starting ....")
-    while num_episodes < n_episodes_for_inferencing:
-        print("episode : ", num_episodes)
-        # Compute an action (`a`).
-        a = alg.compute_single_action(
-            observation=obs,
-            policy_id="default_policy",  # <- default value
-        )
-        # Send the computed action `a` to the env.
-        obs, reward, done, truncated, _ = env.step(a)
-        episode_reward += reward
-        # Is the episode `done`? -> Reset.
-        if done:
-            print(f"Episode done: Total reward = {episode_reward}")
-            obs, info = env.reset()
-            num_episodes += 1
-            episode_reward = 0.0
-    return env, alg
+# def do_inferencing(alg, n_episodes_for_inferencing, quantum_noise_file_path):
+#     """
+#     alg: The trained model
+#     n_episodes_for_inferencing: Number of episodes to do during the training
+#     """
+#
+#     assert n_episodes_for_inferencing > 0
+#     env = return_env_from_alg(alg)
+#     obs, info = env.reset()
+#     t1_list, t2_list, detuning_list = sample_noise_parameters(quantum_noise_file_path)
+#     env.relaxation_rates_list = [np.reciprocal(t1_list).tolist(), np.reciprocal(t2_list).tolist()]
+#     env.detuning_list = detuning_list
+#     num_episodes = 0
+#     episode_reward = 0.0
+#     print("Inferencing is starting ....")
+#     while num_episodes < n_episodes_for_inferencing:
+#         print("episode : ", num_episodes)
+#         # Compute an action (`a`).
+#         a = alg.compute_single_action(
+#             observation=obs,
+#             policy_id="default_policy",  # <- default value
+#         )
+#         # Send the computed action `a` to the env.
+#         obs, reward, done, truncated, _ = env.step(a)
+#         episode_reward += reward
+#         # Is the episode `done`? -> Reset.
+#         if done:
+#             print(f"Episode done: Total reward = {episode_reward}")
+#             obs, info = env.reset()
+#             num_episodes += 1
+#             episode_reward = 0.0
+#     return env, alg
 
 def load_model(path):
     "path (str): Path to the file usually beginning with the word 'checkpoint' " 

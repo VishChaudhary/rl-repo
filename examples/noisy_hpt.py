@@ -9,6 +9,13 @@ from ray.tune.search.optuna import OptunaSearch
 from relaqs import RESULTS_DIR
 import datetime
 import numpy as np
+import relaqs.api.gates as gates
+from relaqs.api.callbacks import GateSynthesisCallbacks
+from relaqs.api.utils import *
+
+path_to_relaqs_root = '/Users/vishchaudhary/rl-repo/src/relaqs'
+QUANTUM_NOISE_DATA_DIR = path_to_relaqs_root + "/quantum_noise_data/"
+noise_file = "april/ibmq_belem_month_is_4.json"
 
 def save_hpt_table(results: tune.ResultGrid):
     df = results.get_dataframe()
@@ -51,12 +58,30 @@ def run_ray_tune(environment, n_configurations=100, n_training_iterations=50, sa
         save_hpt_table(results)
 
 def objective(config):
+    t1_list, t2_list, detuning_list = sample_noise_parameters(noise_file)
+    train_gate = gates.RandomSU2()
     # ---------------------> Configure algorithm and Environment <-------------------------
     alg_config = DDPGConfig()
     alg_config.framework("torch")
     env_config = config["environment"].get_default_env_config()
+    env_config["U_target"] = train_gate.get_matrix()
+    env_config["detuning_list"] = detuning_list
+    env_config["relaxation_ops"] = [sigmam(), sigmaz()]
+    env_config["switch_every_episode"] = True
     env_config["verbose"] = False
     alg_config.environment(config["environment"], env_config=env_config)
+    alg_config.callbacks(GateSynthesisCallbacks)
+    alg_config.rollouts(batch_mode="complete_episodes")
+    alg_config.train_batch_size = env_config["steps_per_Haar"]
+    alg_config.actor_hidden_activation = "relu"
+    alg_config.critic_hidden_activation = "relu"
+    alg_config.num_steps_sampled_before_learning_starts = 5000
+
+    # ---------------------> Tuned Parameters <-------------------------
+    alg_config.actor_lr = 5.057359278283752e-05
+    alg_config.critic_lr = 9.959658940947128e-05
+    alg_config.actor_hiddens = [200] * 10
+    alg_config.critic_hiddens = [100] * 10
 
     exploration_config_keys = alg_config["exploration_config"].keys()
     for key, value in config.items():
@@ -84,8 +109,8 @@ def objective(config):
 
 if __name__ == "__main__":
     environment = NoisySingleQubitEnv
-    n_configurations = 1
-    n_training_iterations = 1
+    n_configurations = 5
+    n_training_iterations = 50
     save = True
     run_ray_tune(environment, n_configurations, n_training_iterations, save)
     ray.shutdown() # not sure if this is required

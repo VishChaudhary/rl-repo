@@ -59,9 +59,9 @@ class NoisySingleQubitEnv(SingleQubitEnv):
     def return_env_config(self):
         env_config = super().get_default_env_config()
         env_config.update({"detuning_list": self.detuning_list,  # qubit detuning
-                           "fidelity_threshold": 0.8,
-                           "fidelity_target_switch_case": 20,
-                           "base_target_switch_case": 1000,
+                           "fidelity_threshold": self.fidelity_threshold,
+                           "fidelity_target_switch_case": self.fidelity_target_switch_case,
+                           "base_target_switch_case": self.base_target_switch_case,
                            #            "relaxation_rates_list": [[0.01,0.02],[0.05, 0.07]], # relaxation lists of list of floats to be sampled from when resetting environment.
                            #            "relaxation_ops": [sigmam(),sigmaz()] #relaxation operator lists for T1 and T2, respectively  # qubit detuning
                            "relaxation_rates_list": self.relaxation_rates_list, # relaxation lists of list of floats to be sampled from when resetting environment. (10 usec)
@@ -69,8 +69,11 @@ class NoisySingleQubitEnv(SingleQubitEnv):
                            "observation_space_size": 68,
                            "num_Haar_basis": self.num_Haar_basis,
                            "steps_per_Haar": self.steps_per_Haar,
-                           "threshold_based_training": False,
-                           "switch_every_episode": False
+                           "threshold_based_training": self.threshold_based_training,
+                           "switch_every_episode": self.switch_every_episode,
+                           "verbose": self.verbose,
+                           "U_init": self.U_initial,
+                           "U_target": self.U_target
                            })
         return env_config
 
@@ -83,7 +86,7 @@ class NoisySingleQubitEnv(SingleQubitEnv):
 
     @classmethod
     def unitary_to_superoperator(self, U):
-        # return np.kron(U.conj(), U)
+        # return np.kron(unitary, np.conjugate(unitary))
         return (spre(Qobj(U)) * spost(Qobj(U))).data.toarray()
 
     def get_relaxation_rate(self):
@@ -150,6 +153,9 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         info_string += f"""Relaxation rate: {self.relaxation_rate}
             Detuning: {self.detuning}"""
         return info_string
+
+    def update_transition_history(self, fidelity, reward, action):
+        self.transition_history.append([fidelity, reward, action, self.U, self.episode_id])
 
     def get_self_U(self):
         return self.U
@@ -247,4 +253,34 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         return (self.state, reward, terminated, truncated, info)
 
 if __name__ == "__main__":
-    print("hello")
+    # return np.kron(unitary, np.conjugate(unitary))
+    # return (spre(Qobj(U)) * spost(Qobj(U))).data.toarray()
+    rand_gate = gates.S()
+    rand_mat = rand_gate.get_matrix()
+    print(rand_mat)
+    print(np.dot(rand_mat, rand_mat.conj().T))
+
+    ## Checking if both unitary_to_superoperator implementations are the same
+    unitary1 = np.kron(rand_mat, np.conjugate(rand_mat))
+    unitary2 = (spre(Qobj(rand_mat)) * spost(Qobj(rand_mat))).data.toarray()
+    print(np.allclose(unitary1, unitary2))
+    # rho = np.array([[1, 0], [0, 0]])  # Example density matrix
+    # vec_rho = rho.flatten()  # Vectorize the density matrix
+    # result1 = unitary1 @ vec_rho
+    # result2 = unitary2 @ vec_rho
+    # print(np.allclose(result1, result2))
+
+    ##Checking if both U_target_dagger implementations are the same
+    ##This check assumes that unitary1 and unitary 2 will be the same
+    rand_targ1 = unitary1.conjugate().transpose()
+    rand_targ2_inner = rand_mat.conjugate().transpose()
+    rand_targ21 = np.kron(rand_targ2_inner, rand_targ2_inner.conj())
+    rand_targ22 = (spre(Qobj(rand_targ2_inner)) * spost(Qobj(rand_targ2_inner))).data.toarray()
+
+    print(f"Unitary1:\n{unitary1}\n")
+    print(f"Unitary2:\n{unitary2}\n")
+
+    print(f"rand_targ1:\n{rand_targ1}\n")
+    print(f"rand_targ21:\n{rand_targ21}\n")
+    print(f"rand_targ22:\n{rand_targ22}\n")
+

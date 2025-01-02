@@ -53,13 +53,19 @@ def plot_results(save_dir, figure_title=""):
     plt.savefig(save_dir + "gradient_and_q_values.png")
 
 
-def plot_data(save_dir, episode_length, figure_title='', plot_filename = 'plot.png', gate_switch_array = None):
+def plot_data(save_dir, episode_length = None, figure_title='', plot_filename = 'plot.png', gate_switch_array = None, inference = False, env = None):
     """ Currently works for constant episode_length """
+    if inference:
+        # base_array = np.array(env.transition_history)
+        fidelities = [row[0] for row in env.transition_history]
+        rewards = [row[1] for row in env.transition_history]
+        episode_ids = [row[4] for row in env.transition_history]
+    else:
     #---------------------- Getting data from files  <--------------------------------------
-    df = pd.read_csv(save_dir + "env_data.csv", header=0)
-    fidelities = np.array(df.iloc[:,0])
-    rewards = np.array(df.iloc[:,1])
-    episode_ids = np.array(df.iloc[:,4])
+        df = pd.read_csv(save_dir + "env_data.csv", header=0)
+        fidelities = np.array(df.iloc[:,0])
+        rewards = np.array(df.iloc[:,1])
+        episode_ids = np.array(df.iloc[:,4])
 
     print("max fidelity: ", max(fidelities))
     print("max reward: ", max(rewards))
@@ -145,7 +151,12 @@ def plot_data(save_dir, episode_length, figure_title='', plot_filename = 'plot.p
             ax3.axvline(x=episode, color='y', linestyle='--')
     
     plt.tight_layout()
-    plt.savefig(save_dir + plot_filename)
+    if save_dir:
+        plt.savefig(save_dir + plot_filename)
+    else:
+        plt.show()
+
+
 
 if __name__ == "__main__":
     save_dir = RESULTS_DIR + "2024-02-27_19-31-17_H/"
