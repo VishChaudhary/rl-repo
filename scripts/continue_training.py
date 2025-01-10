@@ -16,6 +16,9 @@ from qutip.operators import *
 import copy
 from relaqs.api.utils import *
 
+########################################################################################################################
+#               POTENTIALLY OUTDATED- DO NOT USE WITHOUT COMPARING TO OTHER FILES FIRST
+########################################################################################################################
 
 def continue_training(train_gate="RandomSU2", inference_gate= None, n_training_iterations=1, n_episodes_for_inferencing = 1, save=True, plot=True, plot_target_change = False, original_training_date = None):
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
@@ -109,6 +112,8 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
     # Initialize a new environment for inference using this configuration
     inference_env_config = env.return_env_config()
     inference_env_config["U_target"] = inferencing_gate.get_matrix()  # Set new target gate for inference
+    inference_env_config['switch_every_episode'] = False
+    inference_env_config['verbose'] = False
     print(f'U_target:\n{inference_env_config["U_target"]}\n\n')
     inference_env = NoisySingleQubitEnv(inference_env_config)
 
@@ -143,6 +148,10 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
 
 
 if __name__ == "__main__":
+    ########################################################################################################################
+    #               POTENTIALLY OUTDATED- DO NOT USE WITHOUT COMPARING TO OTHER FILES FIRST
+    ########################################################################################################################
+
     # base_path = "/Users/vishchaudhary/rl-repo/results/2024-12-30_11-53-34/model_checkpoints"
     # base_path = "/Users/vishchaudhary/rl-repo/results/2024-12-30_14-56-24/model_checkpoints"
     base_path = "/Users/vishchaudhary/rl-repo/results/2024-12-31_20-32-49/model_checkpoints"

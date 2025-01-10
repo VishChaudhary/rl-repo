@@ -56,10 +56,16 @@ def plot_results(save_dir, figure_title=""):
 def plot_data(save_dir, episode_length = None, figure_title='', plot_filename = 'plot.png', gate_switch_array = None, inference = False, env = None):
     """ Currently works for constant episode_length """
     if inference:
-        # base_array = np.array(env.transition_history)
-        fidelities = [row[0] for row in env.transition_history]
-        rewards = [row[1] for row in env.transition_history]
-        episode_ids = [row[4] for row in env.transition_history]
+        # # # base_array = np.array(env.transition_history)
+        # fidelities = [row[0] for row in env.transition_history]
+        # rewards = [row[1] for row in env.transition_history]
+        # episode_ids = [row[4] for row in env.transition_history]
+
+        columns = ['Fidelity', 'Rewards', 'Actions', 'Operator', 'Episode Id']
+        df = pd.DataFrame(env.transition_history, columns=columns)
+        fidelities = np.array(df.iloc[:, 0])
+        rewards = np.array(df.iloc[:, 1])
+        episode_ids = np.array(df.iloc[:, 4])
     else:
     #---------------------- Getting data from files  <--------------------------------------
         df = pd.read_csv(save_dir + "env_data.csv", header=0)

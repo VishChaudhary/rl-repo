@@ -22,19 +22,26 @@ vec_inverse = lambda X : X.reshape(int(np.sqrt(X.shape[0])),
 def get_time():
     return datetime.now()
 
-def create_self_U_textfile(save_filepath, inference_gate, final_gate):
-    # Example variables (replace these with actual values)
-    target_gate = inference_gate.get_matrix()
-    super_op_target_gate = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
-    file_name = save_filepath + f"{inference_gate}_self_U.txt"
-    U_target_dagger = super_op_target_gate.conjugate().transpose()
+def create_self_U_textfile(save_filepath, inference_gate, calculated_target, target_gate):
 
-    fidelity = float(np.abs(np.trace(U_target_dagger @ final_gate))) / (final_gate.shape[0])
+    super_op_target_gate = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
+    U_target_dagger = np.array(super_op_target_gate.conjugate().transpose())
+    highest_val_self_U = np.array(calculated_target[max(calculated_target.keys())])
+    fidelity = float(np.abs(np.trace(U_target_dagger @ highest_val_self_U))) / (highest_val_self_U.shape[0])
+    # print(f'Super_op_target_gate:\n{np.array(super_op_target_gate)}\n\n')
+    # print(f'Final Self.U:\n{np.array(highest_val_self_U)}\n\n')
+    # print(f'Fidelity: {fidelity}')
+
+    # super_op_target_gate = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
+    file_name = save_filepath + f"{inference_gate}_self_U.txt"
+    # U_target_dagger = super_op_target_gate.conjugate().transpose()
+    #
+    # fidelity = float(np.abs(np.trace(U_target_dagger @ calculated_gate))) / (calculated_gate.shape[0])
 
     # Write to file
     with open(file_name, "w") as f:
         f.write("self.U:\n")
-        f.write(f"{final_gate}\n\n")
+        f.write(f"{highest_val_self_U}\n\n")
         f.write("self.U_target:\n")
         f.write(f"{super_op_target_gate}\n\n")
         f.write(f"Fidelity:\n")
@@ -141,7 +148,7 @@ def config_table(env_config, alg_config, filepath, plot_target_change, n_trainin
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
         f.write(f"Plot when target changes: {plot_target_change}\n")
         f.write(f"N Training Iterations: {n_training_iterations}\n")
-        f.write(f"Continuation from previous training: {continue_training}")
+        f.write(f"Continuation from previous training: {continue_training}\n")
         if continue_training:
             f.write(f"Training continued from results on: {original_training_date}\n")
 

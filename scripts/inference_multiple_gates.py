@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from relaqs.api.callbacks import GateSynthesisCallbacks
 import os
-import datetime
+from datetime import datetime
 from qutip.superoperator import liouvillian, spre, spost
 from qutip import Qobj, tensor
 from qutip.operators import *
@@ -35,7 +35,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # Initialize default configuration
     env_config = NoisySingleQubitEnv.get_default_env_config()
 
-    save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
+    save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
     training_plot_filename = f'training_{train_gate}.png'
 
 
@@ -59,9 +59,9 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     env_config["detuning_list"] = detuning_list
     env_config["relaxation_ops"] = [sigmam(), sigmaz()]
-    env_config["fidelity_threshold"] = 0.7
-    env_config["fidelity_target_switch_case"] = 30
-    env_config["base_target_switch_case"] = 4000
+    # env_config["fidelity_threshold"] = 0.7
+    # env_config["fidelity_target_switch_case"] = 30
+    # env_config["base_target_switch_case"] = 4000
     env_config["verbose"] = False
 
     # ---------------------> Configure algorithm<-------------------------
@@ -103,7 +103,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # alg_config.exploration_config["scale_timesteps"] = 10123.97829415627
 
 
-    print(f'\nalg_config:\n{alg_config}\n')
+    # print(f'\nalg_config:\n{alg_config}\n')
     alg = alg_config.build()
     # ---------------------------------------------------------------------
 
@@ -115,7 +115,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     train_env = alg.workers.local_worker().env
     train_alg = alg
-    num_steps_done = train_env.get_self_episode_num()
+    # num_steps_done = train_env.get_self_episode_num()
 #2024-12-30_11-53-34
     original_episodes_target_switch = train_env.get_episodes_gate_switch()
     gate_switch_array = None
@@ -133,11 +133,10 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     # ---------------------> Save/Plot Training Results <-------------------------
     if save and plot is True:
-        sr = SaveResults(train_env, alg, save_path=save_filepath, results = results,
+        sr = SaveResults(train_env, alg, save_path=save_filepath,
                          target_gate_string=f"Noisy_Train-{str(train_gate)}, Inference-{str(inference_gate)}")
         save_dir = sr.save_results()
         plot_data(save_dir, plot_filename=training_plot_filename,
-                  episode_length= alg._episode_history[0].episode_length,
                   figure_title=f"[NOISY] Training on {str(train_gate)}", gate_switch_array=gate_switch_array)
         print("Results saved to:", save_dir)
     # --------------------------------------------------------------
@@ -149,21 +148,17 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
         inferencing_plot_filename = f'inferencing_{inferencing_gate}.png'
         # -----------------------> Inferencing <---------------------------
         env = train_alg.workers.local_worker().env
-        inference_env, inf_alg, final_gate_kron = do_inferencing(env, train_alg, inferencing_gate, n_episodes_for_inferencing)
+        inference_env, inf_alg, calculated_target, target_gate = do_inferencing(env, train_alg, inferencing_gate, n_episodes_for_inferencing)
 
         # ---------------------> Save/Plot Inference Results <-------------------------
         if plot is True:
             plot_data(save_dir, plot_filename=inferencing_plot_filename, env=inference_env, inference=True,
-                      episode_length=inf_alg._episode_history[0].episode_length,
                       figure_title=f"[NOISY] Inferencing on {str(inferencing_gate)} (Previously Trained on {str(train_gate)})")
-            create_self_U_textfile(save_filepath, inferencing_gate, final_gate_kron)
-            print("Results saved to:", save_dir)
+            create_self_U_textfile(save_filepath, inferencing_gate, calculated_target, target_gate)
+
         # --------------------------------------------------------------
-    print(f'Num times steps called: {num_steps_done}\nWhile training for training iterations num: {n_training_iterations}\n')
-    num_haar_basis = env_config['num_Haar_basis']
-    num_steps_haar = env_config['steps_per_Haar']
-    print(f'Num Haar basis: {num_haar_basis}\nNum steps per haar: {num_steps_haar}')
-    print(f'Type: {type(train_env)}')
+
+
 
     if plot_target_change:
         print(f'Original Switching Array: {original_episodes_target_switch}')
@@ -187,19 +182,30 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
 
     # Initialize a new environment for inference using this configuration
     inference_env_config = env.return_env_config()
-    inference_env_config["U_target"] = inferencing_gate.get_matrix()  # Set new target gate for inference
-    print(f'U_target:\n{inference_env_config["U_target"]}\n\n')
+    target_gate = inferencing_gate.get_matrix()  # Set new target gate for inference
+    inference_env_config["U_target"] = target_gate
+    # inference_env_config['threshold_based_training'] = False
+    inference_env_config['switch_every_episode'] = False
     inference_env = NoisySingleQubitEnv(inference_env_config)
+
+    # ------------------------------------------------------------------------------------
+    target_gate = np.array(target_gate)
+
+    super_op_target_gate = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
+    U_target_dagger = np.array(super_op_target_gate.conjugate().transpose())
+    # ------------------------------------------------------------------------------------
 
     num_episodes = 0
     episode_reward = 0.0
     print("Inferencing on a different gate is starting ....")
+    print(f'Inference Gate Name: {inferencing_gate}\n')
+    print(f'U_target:\n{inference_env_config["U_target"]}\n\n')
     print("*************************************************************************************************")
 
     obs, info = inference_env.reset()  # Start with the inference environment
-    final_gate_kron = []
+    calculated_target = {}
     while num_episodes < n_episodes_for_inferencing:
-        print("Episode : ", num_episodes)
+        # print("Episode : ", num_episodes)
         # Compute an action (`a`).
         action = alg.compute_single_action(
             observation=obs,
@@ -208,22 +214,24 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
         # Send the computed action `action` to the env.
         obs, reward, done, truncated, _ = inference_env.step(action)
         episode_reward += reward
-        print("####################################################")
-        final_gate_kron = np.array(inference_env.get_self_U())
-        print(f'Episode: {num_episodes}\nSelf.U:\n{final_gate_kron}')
+        # print("####################################################")
+        self_U = np.array(inference_env.get_self_U())
+        fidelity = float(np.abs(np.trace(U_target_dagger @ self_U))) / (self_U.shape[0])
+        calculated_target[fidelity] = self_U
+        # print(f'Episode: {num_episodes}\nSelf.U:\n{calculated_gate}')
         # Is the episode `done`? -> Reset.
         if done:
-            print(f"Episode done: Total reward = {episode_reward}")
+            # print(f"Episode done: Total reward = {episode_reward}")
             obs, info = inference_env.reset()
             num_episodes += 1
             episode_reward = 0.0
 
-    return inference_env, alg, final_gate_kron
+    return inference_env, alg, calculated_target, target_gate
 
 
 if __name__ == "__main__":
-    # n_training_iterations = 1
-    # n_episodes_for_inferencing = 20
+    n_training_iterations = 150
+    n_episodes_for_inferencing = 200
 
     save = True
     plot = True
@@ -231,5 +239,5 @@ if __name__ == "__main__":
 
     train_gate = gates.RandomSU2()
 
-    inferencing_gate = [gates.I(), gates.X_pi_4(), gates.X(), gates.Z(), gates.H(), gates.S(), gates.RandomSU2(), gates.Y()]
+    inferencing_gate = [gates.RandomSU2(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(), gates.X_pi_4()]
     run(train_gate, inferencing_gate, n_training_iterations, n_episodes_for_inferencing, save, plot, noise_file, plot_target_change)
