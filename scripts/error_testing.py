@@ -13,6 +13,7 @@ from datetime import datetime
 from qutip.superoperator import liouvillian, spre, spost
 from qutip import Qobj, tensor
 from qutip.operators import *
+import ast
 import copy
 from relaqs.api.utils import *
 import matplotlib.pyplot as plt
@@ -72,35 +73,41 @@ def plot_bloch_sphere(bloch_vectors):
     )
     plt.show()
 
+def preprocess_matrix_string(matrix_str):
+    # Step 1: Remove newline characters
+    matrix_str = matrix_str.replace('\n', '')
+    # Step 2: Add commas where necessary after complex numbers
+    matrix_str = matrix_str.replace('j ', 'j, ')
+    # Step 3: Return the cleaned string
+    matrix_str = matrix_str.replace('] [', '], [')
+    return matrix_str
+
+# def reprocess(matrix_str):
+#     # Step 1: Remove newline characters
+#     matrix_str = matrix_str.replace('\n', '')
+#     # Step 2: Add commas between rows (fixing formatting)
+#     matrix_str = matrix_str.replace('] [', '], [')
+#     return matrix_str
+
+
 if __name__ == "__main__":
 
-    # s_gate_name = gates.S()
-    # s_gate = s_gate_name.get_matrix()
-    # s_dagger = s_gate.conjugate().transpose()
-    # unitary_s = s_dagger @ s_gate
-    #
-    # x_pi_4_name = gates.X_pi_4()
-    # x_pi_4_gate = x_pi_4_name.get_matrix()
-    # x_pi_4_dagger = x_pi_4_gate.conjugate().transpose()
-    # unitary_x_pi_4 = x_pi_4_dagger @ x_pi_4_gate
-    num_samples = 2000
-    random_gate_name = gates.RandomSU2()
-    print(random_gate_name.get_matrix())
-    haar_samples = [random_gate_name.get_matrix() for _ in range(num_samples)]
-    haar_bloch_vectors = np.array([density_matrix_to_bloch(s) for s in haar_samples])
-
-    plot_bloch_sphere(haar_bloch_vectors)
-    # print(f'Alleged S Gate:\n{s_gate}\n')
-    # print(f'Is Alleged S Gate Unitary:\n{unitary_s}\n')
-    # #
-    # print(f'Alleged X_pi_4 Gate:\n{x_pi_4_gate}\n')
-    # print(f'Is alleged X_pi_4 gate unitary:\n{unitary_x_pi_4}\n')
-    # for _ in range(3):
-    #     random_gate = random_gate_name.get_matrix()
-    #     random_dagger = random_gate.conjugate().transpose()
-    #     unitary_random_dagger = random_dagger @ random_gate
-    #     print(f'RandomSU2 Gate:\n{random_gate}\n')
-    #     print(f'Is RandomSU2 Gate Unitary:\n{unitary_random_dagger}\n')
+    df = pd.read_csv("/Users/vishchaudhary/rl-repo/results/2025-01-10_13-11-06/" + "env_data.csv", header=0)
+    # print(df.head())
+    self_u = df.iloc[:, 4].apply(preprocess_matrix_string)
+    # print(self_u[:1])
+    self_u_list = [np.array(eval(m)) for m in self_u]
+    self_u_list = np.array(self_u_list)
+    # self_u_list = [np.array(for m in self_u)]
+    # self_u = self_u.apply(lambda x: np.array(ast.literal_eval(x)))
+    # self_u_list = [matrix for matrix in self_u]
+    # self_u_list = self_u.tolist()
+    # print(self_u_list[0])
+    print(type(self_u_list))
+    print(type(self_u_list[0]))
+    print(self_u_list[0].shape)
+    for i in range(6):
+        print(f'\n\n{self_u_list[i]}\n\n')
 
 
 

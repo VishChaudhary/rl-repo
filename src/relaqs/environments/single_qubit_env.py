@@ -116,7 +116,7 @@ class SingleQubitEnv(gym.Env):
         terminated = False
         if fidelity >= 1:
             truncated = True  # truncated when target fidelity reached
-        if (self.current_Haar_num >= self.num_Haar_basis) and (self.current_step_per_Haar >= self.steps_per_Haar):  # terminate when all Haar is tested
+        elif (self.current_Haar_num >= self.num_Haar_basis) and (self.current_step_per_Haar >= self.steps_per_Haar):  # terminate when all Haar is tested
             terminated = True
         return truncated, terminated
 

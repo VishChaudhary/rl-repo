@@ -73,11 +73,7 @@ def config_table(env_config, alg_config, filepath, plot_target_change, n_trainin
     env_config_default = {
         "num_Haar_basis": 1,
         "steps_per_Haar": 2,
-        "fidelity_threshold": 0.8,
-        "fidelity_target_switch_case": 20,
-        "base_target_switch_case": 1000,
-        "threshold_based_training": False,
-        "switch_every_episode": False
+        "training": True
     }
 
     network_config_default = {
@@ -146,7 +142,7 @@ def config_table(env_config, alg_config, filepath, plot_target_change, n_trainin
         for index, row in network_df.iterrows():
             f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <21} | {row['Default Value']: <18} |\n")
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
-        f.write(f"Plot when target changes: {plot_target_change}\n")
+        # f.write(f"Plot when target changes: {plot_target_change}\n")
         f.write(f"N Training Iterations: {n_training_iterations}\n")
         f.write(f"Continuation from previous training: {continue_training}\n")
         if continue_training:

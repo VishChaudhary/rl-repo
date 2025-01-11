@@ -22,6 +22,7 @@ def continue_training(train_gate="RandomSU2", inference_gate= None, n_episodes_f
     training_plot_filename = f'training_{train_gate}.png'
 
     alg = load_model(base_path)
+    print(base_path)
     train_env = alg.workers.local_worker().env
     alg_config = alg.workers.local_worker().config
     env_config = train_env.return_env_config()
@@ -32,17 +33,17 @@ def continue_training(train_gate="RandomSU2", inference_gate= None, n_episodes_f
     train_alg = alg
 
     num_steps_done = train_env.get_self_episode_num()
-    original_episodes_target_switch = train_env.get_episodes_gate_switch()
-    gate_switch_array = None
+    # original_episodes_target_switch = train_env.get_episodes_gate_switch()
+    # gate_switch_array = None
 
-    if plot_target_change:
-        episodes_target_switch = original_episodes_target_switch.copy()
-        for idx in range(len(episodes_target_switch)):
-            episode = episodes_target_switch[idx]
-            episode = int((episode - env_config["steps_per_Haar"]) / total_Haar_nums)
-            episodes_target_switch[idx] = episode
+    # if plot_target_change:
+    #     episodes_target_switch = original_episodes_target_switch.copy()
+    #     for idx in range(len(episodes_target_switch)):
+    #         episode = episodes_target_switch[idx]
+    #         episode = int((episode - env_config["steps_per_Haar"]) / total_Haar_nums)
+    #         episodes_target_switch[idx] = episode
 
-        gate_switch_array = episodes_target_switch
+        # gate_switch_array = episodes_target_switch
 
     save_dir = None
     for inferencing_gate in inference_gate:
@@ -178,7 +179,7 @@ if __name__ == "__main__":
     # base_path = "/Users/vishchaudhary/rl-repo/results/2024-12-30_14-56-24/model_checkpoints"
     # base_path = "/Users/vishchaudhary/rl-repo/results/2024-12-31_23-06-40/model_checkpoints"
     # base_path = "/Users/vishchaudhary/rl-repo/results/2025-01-09_00-21-26/model_checkpoints"
-    base_path = "/Users/vishchaudhary/rl-repo/results/2024-12-29_16-35-02/model_checkpoints"
+    base_path = "/Users/vishchaudhary/rl-repo/results/2025-01-10_13-16-21/model_checkpoints"
 
     # original_training_date = "2024-12-31_23-06-40"
     n_episodes_for_inferencing = 1

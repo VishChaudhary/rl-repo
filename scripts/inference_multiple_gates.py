@@ -46,8 +46,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     env_config["U_target"] = train_gate.get_matrix()
     env_config['num_Haar_basis'] = 1
     env_config['steps_per_Haar'] = 2
-    # env_config['threshold_based_training'] = True
-    env_config['switch_every_episode'] = True
+    env_config['training'] = True
     total_Haar_nums = env_config["steps_per_Haar"] * env_config["num_Haar_basis"]
 
     #************************************************************************************************************************************************#
@@ -75,7 +74,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     ### working 1-3 sets
     alg_config.actor_hidden_activation = "relu"
     alg_config.critic_hidden_activation = "relu"
-    alg_config.num_steps_sampled_before_learning_starts = 5000
+    alg_config.num_steps_sampled_before_learning_starts = 10000
 
     # ---------------------> Tuned Parameters <-------------------------
     alg_config.actor_lr = 5.057359278283752e-05
@@ -90,8 +89,8 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     alg_config.exploration_config["ou_sigma"] = 0.26940347674578985
     alg_config.exploration_config["initial_scale"] = 1.469323660064391
     # alg_config.exploration_config["scale_timesteps"] = 19885.54898737561
-    # alg_config.exploration_config["scale_timesteps"] = 18750
-    alg_config.exploration_config["scale_timesteps"] = int((n_training_iterations * 1000) / (total_Haar_nums * 4))
+    alg_config.exploration_config["scale_timesteps"] = 18750
+    # alg_config.exploration_config["scale_timesteps"] = int((n_training_iterations * 1000) / (total_Haar_nums * 4))
     # alg_config.exploration_config["scale_timesteps"] = n_training_iterations * 2000
 
     # ---------------------> Close  Second Fidelity/Reward Parameters <-------------------------
@@ -117,17 +116,17 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     train_alg = alg
     # num_steps_done = train_env.get_self_episode_num()
 #2024-12-30_11-53-34
-    original_episodes_target_switch = train_env.get_episodes_gate_switch()
-    gate_switch_array = None
-
-    if plot_target_change:
-        episodes_target_switch = original_episodes_target_switch.copy()
-        for idx in range(len(episodes_target_switch)):
-            episode = episodes_target_switch[idx]
-            episode = int((episode - env_config["steps_per_Haar"]) / total_Haar_nums)
-            episodes_target_switch[idx] = episode
-
-        gate_switch_array = episodes_target_switch
+    # original_episodes_target_switch = train_env.get_episodes_gate_switch()
+    # gate_switch_array = None
+    #
+    # if plot_target_change:
+    #     episodes_target_switch = original_episodes_target_switch.copy()
+    #     for idx in range(len(episodes_target_switch)):
+    #         episode = episodes_target_switch[idx]
+    #         episode = int((episode - env_config["steps_per_Haar"]) / total_Haar_nums)
+    #         episodes_target_switch[idx] = episode
+    #
+    #     gate_switch_array = episodes_target_switch
 
     save_dir = None
 
@@ -137,7 +136,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
                          target_gate_string=f"Noisy_Train-{str(train_gate)}, Inference-{str(inference_gate)}")
         save_dir = sr.save_results()
         plot_data(save_dir, plot_filename=training_plot_filename,
-                  figure_title=f"[NOISY] Training on {str(train_gate)}", gate_switch_array=gate_switch_array)
+                  figure_title=f"[NOISY] Training on {str(train_gate)}", gate_switch_array=None)
         print("Results saved to:", save_dir)
     # --------------------------------------------------------------
 
@@ -160,11 +159,11 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
 
 
-    if plot_target_change:
-        print(f'Original Switching Array: {original_episodes_target_switch}')
-        print(f'Adjusted Switching Array: {episodes_target_switch}')
-    else:
-        print(f'Not plotting when target switches. Number of times target switches: {len(original_episodes_target_switch)}')
+    # if plot_target_change:
+    #     print(f'Original Switching Array: {original_episodes_target_switch}')
+    #     print(f'Adjusted Switching Array: {episodes_target_switch}')
+    # else:
+    #     print(f'Not plotting when target switches. Number of times target switches: {len(original_episodes_target_switch)}')
 
     training_elapsed_time = training_end_time - training_start_time
     print(f"Training Elapsed time: {training_elapsed_time}\n")
@@ -184,8 +183,8 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
     inference_env_config = env.return_env_config()
     target_gate = inferencing_gate.get_matrix()  # Set new target gate for inference
     inference_env_config["U_target"] = target_gate
-    # inference_env_config['threshold_based_training'] = False
-    inference_env_config['switch_every_episode'] = False
+    inference_env_config['training'] = False
+    inference_env_config['verbose'] = False
     inference_env = NoisySingleQubitEnv(inference_env_config)
 
     # ------------------------------------------------------------------------------------
@@ -197,9 +196,7 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
 
     num_episodes = 0
     episode_reward = 0.0
-    print("Inferencing on a different gate is starting ....")
     print(f'Inference Gate Name: {inferencing_gate}\n')
-    print(f'U_target:\n{inference_env_config["U_target"]}\n\n')
     print("*************************************************************************************************")
 
     obs, info = inference_env.reset()  # Start with the inference environment
@@ -230,8 +227,8 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
 
 
 if __name__ == "__main__":
-    n_training_iterations = 150
-    n_episodes_for_inferencing = 200
+    n_training_iterations = 600
+    n_episodes_for_inferencing = 25
 
     save = True
     plot = True

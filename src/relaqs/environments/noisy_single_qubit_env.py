@@ -21,16 +21,12 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         env_config = super().get_default_env_config()
         t1_list, t2_list, detuning_list = sample_noise_parameters()
         env_config.update({"detuning_list": detuning_list,  # qubit detuning
-                           "fidelity_threshold": 0.8,
-                           "fidelity_target_switch_case": 20,
-                           "base_target_switch_case": 1000,
                            "relaxation_rates_list": [t1_list, t2_list],
                            # relaxation lists of list of floats to be sampled from when resetting environment. (10 usec)
                            "relaxation_ops": [sigmam(), sigmaz()],
                            # relaxation operator lists for T1 and T2, respectively
                            "observation_space_size": 2 * 16 + 1 + 2 + 1 + 32, # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rates + 1 for detuning})
-                           "threshold_based_training": False,
-                           "switch_every_episode": False})
+                           "training": True})
         return env_config
 
 
@@ -41,15 +37,10 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         self.original_U_target = env_config["U_target"]
         self.U_target = self.unitary_to_superoperator(env_config["U_target"])
         self.U_initial = self.unitary_to_superoperator(env_config["U_initial"])
-        self.episode_switched = []
         self.global_episode_num = 0
         self.local_episode_num = 0
-        self.fidelity_threshold = env_config["fidelity_threshold"]
-        self.threshold_based_training = env_config["threshold_based_training"]
-        self.switch_every_episode = env_config["switch_every_episode"]
-        self.continuous_fidelity_count = [0] * self.num_Haar_basis * self.steps_per_Haar
-        self.fidelity_target_switch_case = env_config["fidelity_target_switch_case"]
-        self.base_target_switch_case = env_config["base_target_switch_case"]
+        self.episode_num = 1
+        self.training = env_config['training']
         self.relaxation_rates_list = env_config["relaxation_rates_list"]
         self.relaxation_ops = env_config["relaxation_ops"]
         self.relaxation_rate = self.get_relaxation_rate()
@@ -59,9 +50,6 @@ class NoisySingleQubitEnv(SingleQubitEnv):
     def return_env_config(self):
         env_config = super().get_default_env_config()
         env_config.update({"detuning_list": self.detuning_list,  # qubit detuning
-                           "fidelity_threshold": self.fidelity_threshold,
-                           "fidelity_target_switch_case": self.fidelity_target_switch_case,
-                           "base_target_switch_case": self.base_target_switch_case,
                            #            "relaxation_rates_list": [[0.01,0.02],[0.05, 0.07]], # relaxation lists of list of floats to be sampled from when resetting environment.
                            #            "relaxation_ops": [sigmam(),sigmaz()] #relaxation operator lists for T1 and T2, respectively  # qubit detuning
                            "relaxation_rates_list": self.relaxation_rates_list, # relaxation lists of list of floats to be sampled from when resetting environment. (10 usec)
@@ -69,8 +57,7 @@ class NoisySingleQubitEnv(SingleQubitEnv):
                            "observation_space_size": 68,
                            "num_Haar_basis": self.num_Haar_basis,
                            "steps_per_Haar": self.steps_per_Haar,
-                           "threshold_based_training": self.threshold_based_training,
-                           "switch_every_episode": self.switch_every_episode,
+                           "training": self.training,
                            "verbose": self.verbose,
                            "U_init": self.U_initial,
                            "U_target": self.U_target
@@ -155,7 +142,11 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         return info_string
 
     def update_transition_history(self, fidelity, reward, action):
-        self.transition_history.append([fidelity, reward, action, self.U, self.episode_id])
+        # if self.global_episode_num == 1:
+        #     episode_id = 0
+        # else:
+        #     episode_id = self.episode_num
+        self.transition_history.append([fidelity, reward, action, self.U, self.original_U_target, self.episode_id])
 
     def get_self_U(self):
         return self.U
@@ -163,13 +154,11 @@ class NoisySingleQubitEnv(SingleQubitEnv):
     def get_self_episode_num(self):
         return self.global_episode_num
 
-    def get_episodes_gate_switch(self):
-        return self.episode_switched
 
     def switch_target(self):
-        self.episode_switched.append(self.global_episode_num)
         random_gate = gates.RandomSU2()
-        self.U_target = self.unitary_to_superoperator(random_gate.get_matrix())
+        self.original_U_target = random_gate.get_matrix()
+        self.U_target = self.unitary_to_superoperator(self.original_U_target)
         if self.verbose:
             print(
                 "\n----------------------------------------------------------------------------U_TARGET-------------------------------------------------------------------------------------------------------------\n")
@@ -178,40 +167,6 @@ class NoisySingleQubitEnv(SingleQubitEnv):
                 "\n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n")
 
 
-    def switch_target_gate(self, fidelity):
-        self.local_episode_num += 1
-        fidelity_threshold_reached = False
-        base_num_episodes_trained = False
-        haar_val = self.current_Haar_num * self.current_step_per_Haar
-        fidelity_count_idx = haar_val - 1
-        num_vals_needed = (haar_val + 1) // 2
-        vals_above_fidelity_count = 0
-
-        if fidelity >= self.fidelity_threshold:
-            self.continuous_fidelity_count[fidelity_count_idx] += 1
-
-        else:
-            self.continuous_fidelity_count[fidelity_count_idx] = 0
-
-        # vals_above_fidelity_count = sum(val >= self.fidelity_target_switch_case for val in self.continuous_fidelity_count)
-        for val in self.continuous_fidelity_count:
-            if val >= self.fidelity_target_switch_case:
-                vals_above_fidelity_count += 1
-
-        if vals_above_fidelity_count >= num_vals_needed:
-            fidelity_threshold_reached = True
-
-        if self.local_episode_num >= self.base_target_switch_case:
-            base_num_episodes_trained = True
-
-        #Switch Target Gate
-        if fidelity_threshold_reached and base_num_episodes_trained:
-            self.local_episode_num = 0
-            self.continuous_fidelity_count = [0] * self.num_Haar_basis * self.steps_per_Haar
-            self.switch_target()
-
-
-    ###Obviously update this
     def step(self, action):
         self.global_episode_num += 1
         num_time_bins = 2 ** (self.current_Haar_num - 1) # Haar number decides the number of time bins
@@ -219,7 +174,6 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         # gamma is the complex amplitude of the control field
         gamma_magnitude, gamma_phase, alpha = self.parse_actions(action)
 
-        ##Create this in this file
         self.hamiltonian_update(num_time_bins, self.detuning, alpha, gamma_magnitude, gamma_phase)
 
         self.operator_update(num_time_bins)
@@ -231,14 +185,13 @@ class NoisySingleQubitEnv(SingleQubitEnv):
 
         self.state = self.get_observation()
 
-        if self.threshold_based_training:
-            self.switch_target_gate(fidelity)
+        self.update_transition_history(fidelity, reward, action)
 
-        elif self.switch_every_episode:
+        if self.training:
             if self.current_step_per_Haar == self.steps_per_Haar and self.current_Haar_num == self.num_Haar_basis:
+                self.episode_num += 1
                 self.switch_target()
 
-        self.update_transition_history(fidelity, reward, action)
 
         truncated, terminated = self.is_episode_over(fidelity)
 
@@ -252,35 +205,6 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         info = {}
         return (self.state, reward, terminated, truncated, info)
 
-if __name__ == "__main__":
-    # return np.kron(unitary, np.conjugate(unitary))
-    # return (spre(Qobj(U)) * spost(Qobj(U))).data.toarray()
-    rand_gate = gates.S()
-    rand_mat = rand_gate.get_matrix()
-    print(rand_mat)
-    print(np.dot(rand_mat, rand_mat.conj().T))
+# if __name__ == "__main__":
 
-    ## Checking if both unitary_to_superoperator implementations are the same
-    unitary1 = np.kron(rand_mat, np.conjugate(rand_mat))
-    unitary2 = (spre(Qobj(rand_mat)) * spost(Qobj(rand_mat))).data.toarray()
-    print(np.allclose(unitary1, unitary2))
-    # rho = np.array([[1, 0], [0, 0]])  # Example density matrix
-    # vec_rho = rho.flatten()  # Vectorize the density matrix
-    # result1 = unitary1 @ vec_rho
-    # result2 = unitary2 @ vec_rho
-    # print(np.allclose(result1, result2))
-
-    ##Checking if both U_target_dagger implementations are the same
-    ##This check assumes that unitary1 and unitary 2 will be the same
-    rand_targ1 = unitary1.conjugate().transpose()
-    rand_targ2_inner = rand_mat.conjugate().transpose()
-    rand_targ21 = np.kron(rand_targ2_inner, rand_targ2_inner.conj())
-    rand_targ22 = (spre(Qobj(rand_targ2_inner)) * spost(Qobj(rand_targ2_inner))).data.toarray()
-
-    print(f"Unitary1:\n{unitary1}\n")
-    print(f"Unitary2:\n{unitary2}\n")
-
-    print(f"rand_targ1:\n{rand_targ1}\n")
-    print(f"rand_targ21:\n{rand_targ21}\n")
-    print(f"rand_targ22:\n{rand_targ22}\n")
 
