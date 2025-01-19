@@ -25,8 +25,8 @@ noise_file = "april/ibmq_belem_month_is_4.json"
 
 def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_inferencing = 1, save=True, plot=True, noise_file=noise_file, plot_target_change = True):
 
-    ray.init(num_cpus=2,   # change to your available number of CPUs
-        num_gpus=0,
+    ray.init(num_cpus=7,   # change to your available number of CPUs
+        num_gpus=10,
         include_dashboard=False,
         ignore_reinit_error=True,
         log_to_driver=False)
@@ -88,8 +88,8 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     alg_config.exploration_config["ou_theta"] = 0.31360827370009975
     alg_config.exploration_config["ou_sigma"] = 0.26940347674578985
     alg_config.exploration_config["initial_scale"] = 1.469323660064391
-    # alg_config.exploration_config["scale_timesteps"] = 19885.54898737561
-    alg_config.exploration_config["scale_timesteps"] = 18750
+    alg_config.exploration_config["scale_timesteps"] = 19885.54898737561
+    # alg_config.exploration_config["scale_timesteps"] = 18750
     # alg_config.exploration_config["scale_timesteps"] = int((n_training_iterations * 1000) / (total_Haar_nums * 4))
     # alg_config.exploration_config["scale_timesteps"] = n_training_iterations * 2000
 
@@ -227,8 +227,8 @@ def do_inferencing(env, alg, inferencing_gate, n_episodes_for_inferencing):
 
 
 if __name__ == "__main__":
-    n_training_iterations = 600
-    n_episodes_for_inferencing = 25
+    n_training_iterations = 1
+    n_episodes_for_inferencing = 20
 
     save = True
     plot = True
