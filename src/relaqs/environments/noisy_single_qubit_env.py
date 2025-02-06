@@ -15,6 +15,11 @@ X = gates.X().get_matrix()
 Y = gates.Y().get_matrix()
 Z = gates.Z().get_matrix()
 
+
+def sample_even_distribution(x):
+    return np.random.choice(np.arange(0, x), replace=True)
+
+
 class NoisySingleQubitEnv(SingleQubitEnv):
     @classmethod
     def get_default_env_config(cls):
@@ -26,7 +31,9 @@ class NoisySingleQubitEnv(SingleQubitEnv):
                            "relaxation_ops": [sigmam(), sigmaz()],
                            # relaxation operator lists for T1 and T2, respectively
                            "observation_space_size": 2 * 16 + 1 + 2 + 1 + 32, # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rates + 1 for detuning})
-                           "training": True})
+                           "training": True,
+                           "retraining": False,
+                           "retraining_gates": None})
         return env_config
 
 
@@ -40,6 +47,9 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         self.global_episode_num = 0
         self.local_episode_num = 0
         self.episode_num = 1
+        self.retraining = env_config["retraining"]
+        self.retraining_gates = env_config["retraining_gates"]
+        self.num_retraining_gates = 0
         self.training = env_config['training']
         self.relaxation_rates_list = env_config["relaxation_rates_list"]
         self.relaxation_ops = env_config["relaxation_ops"]
@@ -60,7 +70,9 @@ class NoisySingleQubitEnv(SingleQubitEnv):
                            "training": self.training,
                            "verbose": self.verbose,
                            "U_init": self.U_initial,
-                           "U_target": self.U_target
+                           "U_target": self.U_target,
+                           "retraining": self.retraining,
+                           "retraining_gates": self.retraining_gates,
                            })
         return env_config
 
@@ -166,6 +178,25 @@ class NoisySingleQubitEnv(SingleQubitEnv):
             print(
                 "\n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n")
 
+    def sample_target(self):
+        self.num_retraining_gates = len(self.retraining_gates)
+
+        if self.num_retraining_gates == 1:
+            gate = self.retraining_gates[0]
+            self.original_U_target = gate.get_matrix()
+            self.U_target = self.unitary_to_superoperator(self.original_U_target)
+        else:
+            idx = sample_even_distribution(self.num_retraining_gates)
+            gate = self.retraining_gates[idx]
+            self.original_U_target = gate.get_matrix()
+            self.U_target = self.unitary_to_superoperator(self.original_U_target)
+
+        if self.verbose:
+            print(
+                 "\n----------------------------------------------------------------------------U_TARGET-------------------------------------------------------------------------------------------------------------\n")
+            print(self.U_target)
+            print(
+                "\n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n")
 
     def step(self, action):
         self.global_episode_num += 1
@@ -183,17 +214,25 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         reward = self.compute_reward(fidelity)
         self.prev_fidelity = fidelity
 
-        self.state = self.get_observation()
-
         self.update_transition_history(fidelity, reward, action)
 
-        if self.training:
-            if self.current_step_per_Haar == self.steps_per_Haar and self.current_Haar_num == self.num_Haar_basis:
-                self.episode_num += 1
-                self.switch_target()
+        # Ask Colin about this
+        self.state = self.get_observation()
 
+        # if self.training:
+        #     if (self.current_step_per_Haar >= self.steps_per_Haar) and (self.current_Haar_num >= self.num_Haar_basis):
+        #         self.episode_num += 1
+        #         self.switch_target()
 
         truncated, terminated = self.is_episode_over(fidelity)
+
+        if truncated or terminated:
+            if self.training:
+                self.episode_num += 1
+                self.switch_target()
+            elif self.retraining:
+                self.episode_num += 1
+                self.sample_target()
 
         if self.verbose is True:
             print(f'------------Step call: {self.global_episode_num}-----------------------')
@@ -201,6 +240,8 @@ class NoisySingleQubitEnv(SingleQubitEnv):
 
 
         self.Haar_update()
+
+        # self.state is labeled as next observation in env.py
 
         info = {}
         return (self.state, reward, terminated, truncated, info)

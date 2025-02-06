@@ -6,6 +6,12 @@ import json
 from itertools import chain
 import matplotlib as mpl
 from relaqs import RESULTS_DIR
+from relaqs.api.utils import *
+
+def get_last_episode_step(raw_data):
+    # Group by 'Episode Id' and get the last index for each unique episode
+    last_indices = raw_data.groupby('Episode Id').tail(1).index.tolist()
+    return last_indices
 
 def plot_results(save_dir, figure_title=""):
     with open(save_dir + "train_results_data.json") as file:  # q values and gradient vector norms
@@ -53,16 +59,9 @@ def plot_results(save_dir, figure_title=""):
     plt.savefig(save_dir + "gradient_and_q_values.png")
 
 
-def plot_data(save_dir, episode_length = None, figure_title='', plot_filename = 'plot.png', gate_switch_array = None, inference = False, env = None):
+def plot_data(save_dir, episode_length = None, figure_title='', plot_filename = 'plot.png', gate_switch_array = None, inference = False, env = None, modified_inference = False, df= None):
     """ Currently works for constant episode_length """
-    if inference:
-        # # # base_array = np.array(env.transition_history)
-        # fidelities = [row[0] for row in env.transition_history]
-        # rewards = [row[1] for row in env.transition_history]
-        # episode_ids = [row[4] for row in env.transition_history]
-
-        columns = ['Fidelity', 'Rewards', 'Actions', 'Self.U_Operator', 'U_target', 'Episode Id']
-        df = pd.DataFrame(env.transition_history, columns=columns)
+    if modified_inference:
         fidelities = np.array(df.iloc[:, 0])
         rewards = np.array(df.iloc[:, 1])
         episode_ids = np.array(df.iloc[:, 5])
@@ -72,6 +71,18 @@ def plot_data(save_dir, episode_length = None, figure_title='', plot_filename = 
         fidelities = np.array(df.iloc[:,0])
         rewards = np.array(df.iloc[:,1])
         episode_ids = np.array(df.iloc[:,5])
+
+    last_step = get_last_episode_step(df)
+    df_filtered = df.loc[last_step].reset_index(drop=True)
+    preProcessed_actions = df_filtered.iloc[:, 2].apply(preprocess_actions)
+    actions_array = [np.array(eval(m)) for m in preProcessed_actions]
+    last_10_percent_idx = int(0.9 * len(actions_array))
+    fidelity_array = df_filtered.iloc[:, 0]
+
+    recent_fidelity = fidelity_array[last_10_percent_idx:]
+    recent_actions = np.array(actions_array[last_10_percent_idx:])
+
+    actions_analysis(actions_array = recent_actions, final_fidelity_per_episode= recent_fidelity, save_dir = save_dir)
 
     print("max fidelity: ", max(fidelities))
     print("max reward: ", max(rewards))
@@ -126,8 +137,8 @@ def plot_data(save_dir, episode_length = None, figure_title='', plot_filename = 
     fig.set_size_inches(10, 5)
 
     # ----> fidelity <----
-    ax1.plot(final_fidelity_per_episode, color="b")
-    ax1.plot(avg_final_fidelity_per_episode, color="k")
+    ax1.scatter(range(len(final_fidelity_per_episode)),final_fidelity_per_episode, color="b", s=10)
+    ax1.scatter(range(len(avg_final_fidelity_per_episode)),avg_final_fidelity_per_episode, color="k", s=10)
     ax1.set_title("Fidelity")
     ax1.set_title("a)", loc='left', fontsize='medium')
     ax1.set_xlabel("Episodes")
@@ -136,8 +147,8 @@ def plot_data(save_dir, episode_length = None, figure_title='', plot_filename = 
             ax1.axvline(x=episode, color='y', linestyle='--')
 
     # ----> infidelity <----
-    ax2.plot(final_infelity_per_episode, color="r")
-    ax2.plot(avg_final_infelity_per_episode, color="k")
+    ax2.scatter(range(len(final_infelity_per_episode)),final_infelity_per_episode, color="r", s=10)
+    ax2.scatter(range(len(avg_final_infelity_per_episode)),avg_final_infelity_per_episode, color="k",s=10)
     ax2.set_yscale("log")
     ax2.set_title("1 - Fidelity (log scale)")
     ax2.set_title("b)", loc='left', fontsize='medium')
@@ -147,8 +158,8 @@ def plot_data(save_dir, episode_length = None, figure_title='', plot_filename = 
             ax2.axvline(x=episode, color='y', linestyle='--')
 
     # ----> reward <----
-    ax3.plot(sum_of_rewards_per_episode, color="g")
-    ax3.plot(avg_sum_of_rewards_per_episode, color="k")
+    ax3.scatter(range(len(sum_of_rewards_per_episode)),sum_of_rewards_per_episode, color="g", s= 10)
+    ax3.scatter(range(len(avg_sum_of_rewards_per_episode)),avg_sum_of_rewards_per_episode, color="k", s=10)
     ax3.set_title("Sum of Rewards")
     ax3.set_title("c)", loc='left', fontsize='medium')
     ax3.set_xlabel("Episodes")

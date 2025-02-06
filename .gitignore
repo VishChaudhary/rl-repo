@@ -4,3 +4,5 @@ __pycache__
 results/
 gradfile
 ray/
+.idea/
+venv/

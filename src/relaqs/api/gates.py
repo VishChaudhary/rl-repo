@@ -42,6 +42,21 @@ class Y(Gate):
         return np.array([[0, -1j],
                          [1j, 0]])
 
+
+class XY_combination(Gate):
+    def __str__(self):
+        return "XY_combination"
+
+    def get_matrix(self):
+        """
+        aX + bY, a^2 + b^2 = 1
+        """
+        theta = np.random.uniform(0, 2 * np.pi)
+        a = np.sin(theta)
+        b = np.cos(theta)
+        return a * X().get_matrix() + b * Y().get_matrix()
+
+
 class Z(Gate):
     def __str__(self):
         return "Z"

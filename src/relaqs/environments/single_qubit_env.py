@@ -28,6 +28,8 @@ class SingleQubitEnv(gym.Env):
     def __init__(self, env_config):
         self.final_time = env_config["final_time"]  # Final time for the gates
         self.observation_space = gym.spaces.Box(low=-1, high=1, shape=(env_config["observation_space_size"],))
+
+        # Play around with action space ranges for certain actions (shrink or expand)
         self.action_space = gym.spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]))
         self.U_target = env_config["U_target"]
         self.U_initial = env_config["U_initial"] # future todo, can make random initial state
@@ -67,13 +69,13 @@ class SingleQubitEnv(gym.Env):
     def compute_fidelity(self):
         U_target_dagger = self.U_target.conjugate().transpose()
         fidelity = float(np.abs(np.trace(U_target_dagger @ self.U))) / (self.U.shape[0])
-        if fidelity >= 1:
+        if fidelity >= 1 and self.verbose:
             print(
                 f"FIDELITY HIGHER THAN 1--------------------------------------------------------------------------------------------------------\n{fidelity}\n")
         return fidelity
 
     def compute_reward(self, fidelity):
-        if fidelity >= 1:
+        if fidelity >= 1 and self.verbose:
             print(f'Giving max reward---------------------------------------*****************************************************-----------------------------------------------------------------\n')
             return 35
         else:
@@ -128,7 +130,14 @@ class SingleQubitEnv(gym.Env):
             self.current_step_per_Haar += 1
 
     def parse_actions(self, action):
-        gamma_magnitude = self.gamma_magnitude_max / 2 * (action[0] + 1)
+        # Try changing gamma_magnitude denom
+        # gamma_magnitude = self.gamma_magnitude_max / 2 * (action[0] + 1)
+        # gamma_magnitude = self.gamma_magnitude_max * np.sign(action[0]) * (action[0] ** 2)
+        # gamma_magnitude = self.gamma_magnitude_max * (action[0] + 1)
+        # gamma_magnitude = self.gamma_magnitude_max * np.sign(action[0])
+        # gamma_magnitude = self.gamma_magnitude_max / 10 * (action[0] + 1)
+        # gamma_magnitude = self.gamma_magnitude_max * action[0]
+        gamma_magnitude = self.gamma_magnitude_max * np.tanh(action[0])
         gamma_phase = self.gamma_phase_max * action[1]
         alpha = self.alpha_max * action[2]
         return gamma_magnitude, gamma_phase, alpha

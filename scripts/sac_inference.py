@@ -1,7 +1,7 @@
 """ Learning new single qubit gates, rather than the default X gate. """
 
 import ray
-from ray.rllib.algorithms.ddpg import DDPGConfig
+from ray.rllib.algorithms.sac import SACConfig
 from ray.tune.registry import register_env
 from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
 from relaqs.save_results import SaveResults
@@ -12,7 +12,7 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
-from relaqs.api.callbacks import GateSynthesisCallbacks
+from relaqs.api.SAC_callbacks import SACGateSynthesisCallbacks
 import os
 from datetime import datetime
 from qutip.superoperator import liouvillian, spre, spost
@@ -58,8 +58,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     env_config['num_Haar_basis'] = 1
     env_config['steps_per_Haar'] = 2
     env_config['training'] = True
-    env_config['retraining'] = False
-    # total_Haar_nums = env_config["steps_per_Haar"] * env_config["num_Haar_basis"]
+    total_Haar_nums = env_config["steps_per_Haar"] * env_config["num_Haar_basis"]
 
     #************************************************************************************************************************************************#
     ###Check what the need for np.reciprocal is bc the default is not like that
@@ -75,59 +74,46 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # env_config["base_target_switch_case"] = 4000
     env_config["verbose"] = False
 
+
     # ---------------------> Configure algorithm<-------------------------
-    alg_config = DDPGConfig()
+    alg_config = SACConfig()
     alg_config.framework("torch")
     alg_config.environment(NoisySingleQubitEnv, env_config=env_config)
-    alg_config.callbacks(GateSynthesisCallbacks)
+    alg_config.callbacks(SACGateSynthesisCallbacks)
     alg_config.rollouts(batch_mode="complete_episodes")
     alg_config.train_batch_size = env_config["steps_per_Haar"]
 
-    ### working 1-3 sets
-    alg_config.actor_hidden_activation = "relu"
-    alg_config.critic_hidden_activation = "relu"
-    # alg_config.num_steps_sampled_before_learning_starts = 10000
-
-    # # ---------------------> Tuned Parameters <-------------------------
+    # ---------------------> Tuned Parameters <-------------------------
+    # Learning rates for actor and critic
+###############################################This is not properly set#########################
     alg_config.actor_lr = 5.057359278283752e-05
     alg_config.critic_lr = 9.959658940947128e-05
-    alg_config.actor_hiddens = [200] * 10
-    alg_config.critic_hiddens = [100] * 10
+    # alg_config.initial_alpha = 0.1  # Starting value for entropy coefficient
 
-    # alg_config.actor_hiddens = [256] * 10
-    # alg_config.critic_hiddens = [200] * 10
+    # Hidden layer configurations for policy and Q-value models
+    #Actor
+    alg_config.policy_model_config = {
+        "fcnet_hiddens": [256] * 10,
+        "fcnet_activation": "relu",
+    }
+    #Critic
+    alg_config.q_model_config = {
+        "fcnet_hiddens": [256] * 10,
+        "fcnet_activation": "relu",
+    }
 
-    # ---------------------> 2025-01-22_05-50-08-HPT: Tuned Parameters <-------------------------
-    # alg_config.actor_lr = 2.5512592152219747e-05
-    # alg_config.critic_lr = 1.3097861849113528e-05
-    # alg_config.actor_hiddens = [100] * 50
-    # alg_config.critic_hiddens = [200] * 75
-    # alg_config.num_steps_sampled_before_learning_starts = 5000
-
-    # # ---------------------> 2025-01-23_05-14-17-HPT: Tuned Parameters <-------------------------
-    # alg_config.actor_lr = 1.822167059368299e-05
-    # alg_config.critic_lr = 4.500308062559224e-05
-    # alg_config.actor_hiddens = [50] * 50
-    # alg_config.critic_hiddens = [300] * 30
     # alg_config.num_steps_sampled_before_learning_starts = 10000
 
-    # ---------------------> Slightly Higher Fidelity/Reward <-------------------------
-    alg_config.exploration_config["random_timesteps"] = 3055.8304716435505
-    alg_config.exploration_config["ou_base_scale"] = 0.33536897625927453
-    alg_config.exploration_config["ou_theta"] = 0.31360827370009975
-    alg_config.exploration_config["ou_sigma"] = 0.26940347674578985
-    # alg_config.exploration_config["initial_scale"] = 1.469323660064391
-    alg_config.exploration_config["initial_scale"] = 1.1
-    # alg_config.exploration_config["initial_scale"] = 1.0
+    # Entropy configuration (specific to SAC)
+    # Automatically set to auto
+    # alg_config.target_entropy = "auto"  # Automatically tune entropy
 
-    # alg_config.exploration_config["scale_timesteps"] = 20000
-    # alg_config.exploration_config["scale_timesteps"] = 18750
+
+    # Twin Q-network for stability
+    #Already set to true
     alg_config.twin_q = True
-    # alg_config.smooth_target_policy = True
 
 
-    # print(f'\nalg_config:\n{alg_config}\n')
-    # alg_config = alg_config.resources(num_gpus=1)
     alg = alg_config.build()
     # alg = alg.to(torch.device("mps"))
     # ---------------------------------------------------------------------
@@ -136,20 +122,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # print(ray.available_resources())
     # ---------------------> Train Agent <-------------------------
     n_training_iterations *= env_config['num_Haar_basis'] * env_config['steps_per_Haar']
-
-    update_every_percent = 5
-    results = []
-    # update_interval = n_training_iterations * (update_every_percent / 100)
-    update_interval =  max(1, int(n_training_iterations * (update_every_percent / 100)))
-
-    for i in range(n_training_iterations):
-        results.append(alg.train())
-        # Print update every x%
-        if (i + 1) % int(update_interval) == 0 or (i + 1) == n_training_iterations:
-            percent_complete = (i + 1) / n_training_iterations * 100
-            print(f"Training Progress: {percent_complete:.0f}% complete")
-
-    # results = [alg.train() for _ in range(n_training_iterations)]
+    results = [alg.train() for _ in range(n_training_iterations)]
     # -------------------------------------------------------------
     training_end_time = get_time()
 
@@ -167,7 +140,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
         print("Results saved to:", save_dir)
     # --------------------------------------------------------------
 
-    config_table(env_config = env_config, alg_config = alg_config, filepath = save_filepath)
+    # config_table(env_config = env_config, alg_config = alg_config, filepath = save_filepath)
     columns = ['Fidelity', 'Rewards', 'Actions', 'Self.U_Operator', 'U_target', 'Episode Id']
     inf_count = 0
 
@@ -214,7 +187,6 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     training_elapsed_time = training_end_time - training_start_time
     print(f"Training Elapsed time: {training_elapsed_time}\n")
-    print(f'File saved to: {save_filepath}')
 
     ray.shutdown()
 
@@ -234,7 +206,6 @@ def do_inferencing(env, alg, gate):
     inference_env_config["U_target"] = target_gate
     inference_env_config['training'] = False
     inference_env_config['verbose'] = False
-    inference_env_config['retraining'] = False
     inference_env = NoisySingleQubitEnv(inference_env_config)
 
     # ------------------------------------------------------------------------------------
@@ -262,7 +233,7 @@ def do_inferencing(env, alg, gate):
 
 def main():
     # Modified to be number of episodes for training (in thousands)
-    n_training_iterations = 2
+    n_training_iterations = 10
     n_episodes_for_inferencing = 1000
 
     save = True
@@ -271,20 +242,12 @@ def main():
 
     train_gate = gates.RandomSU2()
 
-    ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
-    inferencing_gate = [gates.RandomSU2(), gates.XY_combination(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
+    ##RandomGate must be kept as first in the array
+    inferencing_gate = [gates.RandomSU2(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
                         gates.X_pi_4()]
 
     run(train_gate, inferencing_gate, n_training_iterations, n_episodes_for_inferencing, save, plot, noise_file,
         plot_target_change)
-
-    #q_values:
-# tensor([[-0.0212],
-#         [-0.0084]], grad_fn=<AddmmBackward0>)
-
-#q_values:
-# tensor([[-0.0275],
-#         [-0.0195]], grad_fn=<AddmmBackward0>)
 
 
 if __name__ == "__main__":
