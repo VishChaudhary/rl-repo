@@ -67,10 +67,11 @@ class SACGateSynthesisCallbacks(DefaultCallbacks):
 
         # Detach both Q-values and convert to numpy
         q1_np = q1.detach().numpy()
+        # print(f"Q1 values: {q1_np}")
         # q2_np = q2.detach().numpy()
 
         # Append both Q-values to the hist_data for tracking
-        episode.hist_data["q_values"].append(q1_np[0][0])
+        episode.hist_data["q_values"].append(q1_np)
 
         # --------------------> Gradient Norm Tracking <--------------------
         batch = SampleBatch(
@@ -87,11 +88,10 @@ class SACGateSynthesisCallbacks(DefaultCallbacks):
         gradients_info = gradients[1]
         NoneType = type(None)
         gradients = [x for x in gradients[0] if not isinstance(x, NoneType)]
-
         average_grad = 0
         for grad in gradients:
             average_grad += vector_norm(grad)
-        average_grad /= len(gradients)
+        average_grad = average_grad/(len(gradients))
 
         episode.hist_data['grad_gnorm'].append(gradients_info['learner_stats']['grad_gnorm'])
         episode.hist_data["average_gradnorm"].append(average_grad.numpy())

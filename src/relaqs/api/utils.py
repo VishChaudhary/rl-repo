@@ -135,6 +135,60 @@ def actions_analysis(actions_array, final_fidelity_per_episode, save_dir):
         f.write("   - High regression coefficients mean actions significantly affect fidelity.\n")
         f.write("   - Consider both correlation strength and statistical significance when making decisions.\n")
 
+def plot_overall_alg_votes(alg_votes, save_dir):
+    """Efficiently plots algorithm call counts with value labels on bars."""
+    plt.figure(figsize=(8, 5))
+    bars = plt.bar(alg_votes.keys(), alg_votes.values(), color="skyblue")
+
+    # Add value labels on top of the bars
+    for bar in bars:
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                 f"{bar.get_height()}", ha='center', va='bottom',
+                 fontsize=12, fontweight='bold')
+
+    plt.xlabel("Algorithm ID", fontsize=12)
+    plt.ylabel("Number of Calls", fontsize=12)
+    plt.title("Algorithm Call Counts", fontsize=14)
+    plt.xticks(list(alg_votes.keys()))
+
+    if save_dir:
+        plt.savefig(os.path.join(save_dir, "overall_alg_votes.png"))
+    else:
+        plt.show()
+
+def plot_alg_gate_counts(alg_gate_counts, save_path):
+    """Plots and saves a separate bar chart for each algorithm's gate counts."""
+    for alg_id, gate_counts in alg_gate_counts.items():
+        if not gate_counts:  # Skip empty entries
+            continue
+
+        plt.figure(figsize=(6, 4))
+        gates = [str(g) for g in gate_counts.keys()]
+        counts = list(gate_counts.values())
+
+        plt.bar(gates, counts, color="skyblue")
+        plt.title(f"Algorithm {alg_id} Gate Counts", fontsize=14)
+        plt.xlabel("Gate Name", fontsize=12)
+        plt.ylabel("Count", fontsize=12)
+        plt.xticks(rotation=45, ha='right')
+
+        # Save each figure separately
+        plt.tight_layout()
+        if save_path:
+            plt.savefig(os.path.join(save_path, f"alg_{alg_id}_gate_counts.png"))
+            plt.close()  # Close the figure to free memory
+        else:
+            plt.show()
+
+def save_alg_names_to_file(alg_names, save_dir):
+    """Saves the algorithm names from a list into a text file."""
+    filepath = os.path.join(save_dir, "alg_names.txt")
+    with open(filepath, "w") as file:
+        for i, name in enumerate(alg_names):
+            file.write(f"Alg{i}: {name}\n")
+
+
+
 
 def plot_multiple_visuals(df, figure_title, save_dir, plot_filename, bin_step=0.1, inf_count=None,
                           fidelity_threshold=0.8, gate=None):

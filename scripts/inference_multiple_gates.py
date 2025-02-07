@@ -59,7 +59,6 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     env_config['steps_per_Haar'] = 2
     env_config['training'] = True
     env_config['retraining'] = False
-    # total_Haar_nums = env_config["steps_per_Haar"] * env_config["num_Haar_basis"]
 
     #************************************************************************************************************************************************#
     ###Check what the need for np.reciprocal is bc the default is not like that
@@ -70,9 +69,6 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     env_config["detuning_list"] = detuning_list
     env_config["relaxation_ops"] = [sigmam(), sigmaz()]
-    # env_config["fidelity_threshold"] = 0.7
-    # env_config["fidelity_target_switch_case"] = 30
-    # env_config["base_target_switch_case"] = 4000
     env_config["verbose"] = False
 
     # ---------------------> Configure algorithm<-------------------------
@@ -262,7 +258,7 @@ def do_inferencing(env, alg, gate):
 
 def main():
     # Modified to be number of episodes for training (in thousands)
-    n_training_iterations = 2
+    n_training_iterations = 75
     n_episodes_for_inferencing = 1000
 
     save = True
@@ -277,15 +273,6 @@ def main():
 
     run(train_gate, inferencing_gate, n_training_iterations, n_episodes_for_inferencing, save, plot, noise_file,
         plot_target_change)
-
-    #q_values:
-# tensor([[-0.0212],
-#         [-0.0084]], grad_fn=<AddmmBackward0>)
-
-#q_values:
-# tensor([[-0.0275],
-#         [-0.0195]], grad_fn=<AddmmBackward0>)
-
 
 if __name__ == "__main__":
     main()

@@ -58,7 +58,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     env_config['num_Haar_basis'] = 1
     env_config['steps_per_Haar'] = 2
     env_config['training'] = True
-    total_Haar_nums = env_config["steps_per_Haar"] * env_config["num_Haar_basis"]
+    env_config['retraining'] = False
 
     #************************************************************************************************************************************************#
     ###Check what the need for np.reciprocal is bc the default is not like that
@@ -69,9 +69,6 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     env_config["detuning_list"] = detuning_list
     env_config["relaxation_ops"] = [sigmam(), sigmaz()]
-    # env_config["fidelity_threshold"] = 0.7
-    # env_config["fidelity_target_switch_case"] = 30
-    # env_config["base_target_switch_case"] = 4000
     env_config["verbose"] = False
 
 
@@ -86,8 +83,23 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # ---------------------> Tuned Parameters <-------------------------
     # Learning rates for actor and critic
 ###############################################This is not properly set#########################
-    alg_config.actor_lr = 5.057359278283752e-05
-    alg_config.critic_lr = 9.959658940947128e-05
+    # alg_config.optimization = {
+    #     "actor_learning_rate": 3e-4,
+    #     "critic_learning_rate": 3e-4,
+    #     "entropy_learning_rate": 3e-4,
+    # }
+    # alg_config.optimization = {
+    #     "actor_learning_rate": 5.057359278283752e-05,
+    #     "critic_learning_rate": 9.959658940947128e-05,
+    #     "entropy_learning_rate": 3e-4,
+    # }
+
+    alg_config.optimization = {
+    "actor_learning_rate": 2e-4,
+    "critic_learning_rate": 3e-4,
+    "entropy_learning_rate": 5e-5,
+    }
+
     # alg_config.initial_alpha = 0.1  # Starting value for entropy coefficient
 
     # Hidden layer configurations for policy and Q-value models
@@ -121,8 +133,19 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     training_start_time = get_time()
     # print(ray.available_resources())
     # ---------------------> Train Agent <-------------------------
-    n_training_iterations *= env_config['num_Haar_basis'] * env_config['steps_per_Haar']
-    results = [alg.train() for _ in range(n_training_iterations)]
+    n_training_iterations *= env_config['num_Haar_basis'] * env_config['steps_per_Haar'] * 8
+    update_every_percent = 5
+    results = []
+    # update_interval = n_training_iterations * (update_every_percent / 100)
+    update_interval =  max(1, int(n_training_iterations * (update_every_percent / 100)))
+
+    for i in range(n_training_iterations):
+        results.append(alg.train())
+        # Print update every x%
+        if (i + 1) % int(update_interval) == 0 or (i + 1) == n_training_iterations:
+            percent_complete = (i + 1) / n_training_iterations * 100
+            print(f"Training Progress: {percent_complete:.0f}% complete")
+
     # -------------------------------------------------------------
     training_end_time = get_time()
 
@@ -187,7 +210,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     training_elapsed_time = training_end_time - training_start_time
     print(f"Training Elapsed time: {training_elapsed_time}\n")
-
+    print(f'File saved to: {save_filepath}')
     ray.shutdown()
 
 
@@ -206,6 +229,7 @@ def do_inferencing(env, alg, gate):
     inference_env_config["U_target"] = target_gate
     inference_env_config['training'] = False
     inference_env_config['verbose'] = False
+    inference_env_config['retraining'] = False
     inference_env = NoisySingleQubitEnv(inference_env_config)
 
     # ------------------------------------------------------------------------------------
@@ -233,7 +257,7 @@ def do_inferencing(env, alg, gate):
 
 def main():
     # Modified to be number of episodes for training (in thousands)
-    n_training_iterations = 10
+    n_training_iterations = 75
     n_episodes_for_inferencing = 1000
 
     save = True
@@ -242,8 +266,9 @@ def main():
 
     train_gate = gates.RandomSU2()
 
-    ##RandomGate must be kept as first in the array
-    inferencing_gate = [gates.RandomSU2(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
+    ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
+    inferencing_gate = [gates.RandomSU2(), gates.XY_combination(), gates.I(), gates.X(), gates.Y(), gates.Z(),
+                        gates.H(), gates.S(),
                         gates.X_pi_4()]
 
     run(train_gate, inferencing_gate, n_training_iterations, n_episodes_for_inferencing, save, plot, noise_file,

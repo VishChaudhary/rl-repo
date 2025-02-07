@@ -148,7 +148,7 @@ def do_inferencing(env, train_alg, curr_gate):
 
 
 def main():
-    original_date = "2025-02-06_14-27-50"
+    original_date = "2025-02-06_19-51-54"
     model_path = "/Users/vishchaudhary/rl-repo/results/" + original_date + "/model_checkpoints"
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
 
@@ -162,7 +162,7 @@ def main():
     training_plot_filename = f'{retrain_name}_retraining.png'
 
     # Modified to be number of episodes for training (in thousands)
-    n_training_iterations = 75
+    n_training_iterations = 350
     n_episodes_for_inferencing = 1000
 
     ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array

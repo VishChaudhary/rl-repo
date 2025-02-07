@@ -65,9 +65,9 @@ class GateSynthesisCallbacks(DefaultCallbacks):
         #------------------------> getting q values <--------------------------------------------------------
         model_out_t, _ = model(input_dict, [], None)
         q_values = model.get_q_values(model_out_t, torch.Tensor(postprocessed_batch['actions']))
+        episode.hist_data["q_values"].append(q_values.detach().numpy())
         # print(f'q_values: \n{q_values}\n')
         # print(f'detached q_values: \n{q_values.detach().numpy()[0][0]}\n')
-        episode.hist_data["q_values"].append(q_values.detach().numpy()[0][0])
 
 
         #------------------------> getting gradients <--------------------------------------------------------
