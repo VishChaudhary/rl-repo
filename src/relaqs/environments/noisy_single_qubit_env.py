@@ -30,7 +30,7 @@ class NoisySingleQubitEnv(SingleQubitEnv):
                            # relaxation lists of list of floats to be sampled from when resetting environment. (10 usec)
                            "relaxation_ops": [sigmam(), sigmaz()],
                            # relaxation operator lists for T1 and T2, respectively
-                           "observation_space_size": 2 * 16 + 1 + 2 + 1 + 32, # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rates + 1 for detuning})
+                           "observation_space_size": 2 * 16 + 1 + 2 + 1 + 32, # 2*16 = (complex number)*(density matrix elements = 4)^2, + 1 for fidelity + 2 for relaxation rates + 1 for detuning,  2*16})
                            "training": True,
                            "retraining": False,
                            "retraining_gates": None})
@@ -106,8 +106,8 @@ class NoisySingleQubitEnv(SingleQubitEnv):
                          normalized_relaxation_rates +
                          normalized_detuning,
                          self.unitary_to_observation(self.U))
-
-        return np.append(interm_array, self.unitary_to_observation(self.U_target))
+        ans = np.append(interm_array, self.unitary_to_observation(self.U_target))
+        return ans
 
     def hamiltonian(self, detuning, alpha, gamma_magnitude, gamma_phase):
         return (detuning + alpha)*Z + gamma_magnitude*(np.cos(gamma_phase)*X + np.sin(gamma_phase)*Y)
@@ -188,7 +188,10 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         else:
             idx = sample_even_distribution(self.num_retraining_gates)
             gate = self.retraining_gates[idx]
-            self.original_U_target = gate.get_matrix()
+            if isinstance(gate, np.ndarray):
+                self.original_U_target = gate
+            else:
+                self.original_U_target = gate.get_matrix()
             self.U_target = self.unitary_to_superoperator(self.original_U_target)
 
         if self.verbose:

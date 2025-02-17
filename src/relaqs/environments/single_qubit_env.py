@@ -28,7 +28,6 @@ class SingleQubitEnv(gym.Env):
     def __init__(self, env_config):
         self.final_time = env_config["final_time"]  # Final time for the gates
         self.observation_space = gym.spaces.Box(low=-1, high=1, shape=(env_config["observation_space_size"],))
-
         # Play around with action space ranges for certain actions (shrink or expand)
         self.action_space = gym.spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]))
         self.U_target = env_config["U_target"]
@@ -132,10 +131,6 @@ class SingleQubitEnv(gym.Env):
     def parse_actions(self, action):
         # Try changing gamma_magnitude denom
         # gamma_magnitude = self.gamma_magnitude_max / 2 * (action[0] + 1)
-        # gamma_magnitude = self.gamma_magnitude_max * np.sign(action[0]) * (action[0] ** 2)
-        # gamma_magnitude = self.gamma_magnitude_max * (action[0] + 1)
-        # gamma_magnitude = self.gamma_magnitude_max * np.sign(action[0])
-        # gamma_magnitude = self.gamma_magnitude_max / 10 * (action[0] + 1)
         # gamma_magnitude = self.gamma_magnitude_max * action[0]
         gamma_magnitude = self.gamma_magnitude_max * np.tanh(action[0])
         gamma_phase = self.gamma_phase_max * action[1]

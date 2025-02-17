@@ -1,7 +1,7 @@
 import ray
 from ray.rllib.algorithms.ddpg import DDPGConfig
 from ray.tune.registry import register_env
-from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
+# from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
 from relaqs.save_results import SaveResults
 from relaqs.plot_data import plot_data
 import relaqs.api.gates as gates
@@ -31,15 +31,18 @@ def boosted_retraining(training_alg, n_training_episodes):
              ignore_reinit_error=True,
              log_to_driver=False)
 
-    training_start_time = get_time()
+    # training_start_time = get_time()
 
     new_alg_config = training_alg.config.copy()
     env_config = new_alg_config['env_config']
 
     n_training_episodes *= env_config['num_Haar_basis'] * env_config['steps_per_Haar']
-    update_every_percent = 5
+
+    update_every_percent = 2
     results = []
-    update_interval = n_training_episodes * (update_every_percent / 100)
+    update_interval = max(1, int(n_training_episodes * (update_every_percent / 100)))
+
+    training_start_time = get_time()
 
     for i in range(n_training_episodes):
         results.append(training_alg.train())
@@ -47,7 +50,6 @@ def boosted_retraining(training_alg, n_training_episodes):
         if (i + 1) % int(update_interval) == 0 or (i + 1) == n_training_episodes:
             percent_complete = (i + 1) / n_training_episodes * 100
             print(f"Training Progress: {percent_complete:.0f}% complete")
-
 
     training_end_time = get_time()
 
@@ -122,7 +124,9 @@ def do_inferencing(env, train_alg, curr_gate):
     inference_env_config['training'] = False
     inference_env_config['retraining'] = False
     inference_env_config['verbose'] = False
-    inference_env = NoisySingleQubitEnv(inference_env_config)
+    # inference_env = NoisySingleQubitEnv(inference_env_config)
+    env_class = type(env)
+    inference_env = env_class(inference_env_config)
 
     # ------------------------------------------------------------------------------------
     target_gate = np.array(target_gate)
@@ -148,7 +152,7 @@ def do_inferencing(env, train_alg, curr_gate):
 
 
 def main():
-    original_date = "2025-02-06_19-51-54"
+    original_date = "2025-02-15_16-55-52"
     model_path = "/Users/vishchaudhary/rl-repo/results/" + original_date + "/model_checkpoints"
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
 
@@ -162,7 +166,7 @@ def main():
     training_plot_filename = f'{retrain_name}_retraining.png'
 
     # Modified to be number of episodes for training (in thousands)
-    n_training_iterations = 350
+    n_training_iterations = 50
     n_episodes_for_inferencing = 1000
 
     ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array

@@ -1,7 +1,7 @@
 import ray
 from ray.rllib.algorithms.ddpg import DDPGConfig
 from ray.tune.registry import register_env
-# from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
+from relaqs.environments.SAC_noisy_single_qubit_env import SAC_NoisySingleQubitEnv
 from relaqs.save_results import SaveResults
 from relaqs.plot_data import plot_data
 import relaqs.api.gates as gates
@@ -10,7 +10,7 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
-from relaqs.api.callbacks import GateSynthesisCallbacks
+from relaqs.api.SAC_callbacks import SACGateSynthesisCallbacks
 import os
 from datetime import datetime
 from qutip.superoperator import liouvillian, spre, spost
@@ -23,7 +23,7 @@ import qutip
 from relaqs.api.utils import *
 
 
-def boosted_retraining(training_alg, retrain_gates, n_training_episodes, model_path):
+def boosted_retraining(training_alg, n_training_episodes, model_path):
 
     ray.init(num_cpus=14,  # change to your available number of CPUs
              num_gpus=20,
@@ -31,55 +31,33 @@ def boosted_retraining(training_alg, retrain_gates, n_training_episodes, model_p
              ignore_reinit_error=True,
              log_to_driver=False)
 
-    # env_config = training_alg.workers.local_worker().env.return_env_config()
+    training_start_time = get_time()
 
-
-    # alg_config = training_alg.workers.local_worker().config
-    # alg_config.environment(NoisySingleQubitEnv, env_config=env_config)
-    # training_alg.config.update_from_dict({"env_config": env_config})
-
-    ###################################################
-    new_alg_config = training_alg.config.copy(copy_frozen=False)
-    env = training_alg.workers.local_worker().env
+    new_alg_config = training_alg.config.copy(copy_frozen = False)
     env_config = new_alg_config['env_config']
-    env_config["U_target"] = retrain_gates[0].get_matrix()
-    env_config["training"] = False
-    env_config["retraining"] = True
-    env_config["retraining_gates"] = retrain_gates
-    env_config["verbose"] = False
-    env_config["steps_per_Haar"] = new_alg_config['env_config']['steps_per_Haar'] + 1
-    # print(env_config["steps_per_Haar"])
+
+    new_alg_config.environment(SAC_NoisySingleQubitEnv, env_config=env_config)
+    new_alg_config.train_batch_size = env_config["steps_per_Haar"]
+
+    new_learning_rates = {
+        "actor_learning_rate": 3e-5,  # Reduce for precision
+        "critic_learning_rate": 7e-5,  # Reduce to stabilize Q-learning
+        "entropy_learning_rate": 2e-5,  # Lower entropy decay for better exploration
+    }
+
+    for key, value in new_learning_rates.items():
+        new_alg_config["optimization"][key] = value  # Update RLlib's internal config
 
 
-    # new_alg_config['env_config']["U_target"] = retrain_gate.get_matrix()
-    # new_alg_config['twin_q'] = True
-    env_class = type(env)
-    new_alg_config.environment(env_class, env_config=env_config)
     updated_model = new_alg_config.build()
-
-
     updated_model.restore(model_path)
 
 
 
-
-    ####################################################
-
-
-    # training_alg = alg_config.build()
-    # ---------------------------------------------------------------------
-
-    training_start_time = get_time()
-    # ---------------------> Train Agent <-------------------------
-    # n_training_episodes *= env_config['num_Haar_basis'] * env_config['steps_per_Haar']
-    # results = [updated_model.train() for _ in range(n_training_episodes)]
-    # -------------------------------------------------------------
-
-    n_training_episodes *= env_config['num_Haar_basis'] * env_config['steps_per_Haar'] * len(retrain_gates)
-
+    n_training_episodes *= env_config['num_Haar_basis'] * env_config['steps_per_Haar'] * 9
     update_every_percent = 2
     results = []
-    update_interval =  max(1, int(n_training_episodes * (update_every_percent / 100)))
+    update_interval = n_training_episodes * (update_every_percent / 100)
 
     for i in range(n_training_episodes):
         results.append(updated_model.train())
@@ -88,12 +66,11 @@ def boosted_retraining(training_alg, retrain_gates, n_training_episodes, model_p
             percent_complete = (i + 1) / n_training_episodes * 100
             print(f"Training Progress: {percent_complete:.0f}% complete")
 
-    # results = [training_alg.train() for _ in range(n_training_episodes)]
 
     training_end_time = get_time()
 
     training_elapsed_time = training_end_time - training_start_time
-    # print(f"Training Elapsed time: {training_elapsed_time}\n")
+    print(f"Training Elapsed time: {training_elapsed_time}\n")
 
     # return updated_model
     return updated_model, training_elapsed_time
@@ -111,7 +88,7 @@ def save_training_results(training_alg, filepath, filename, title_figure, initia
     print("Results saved to:", save_dir)
     # --------------------------------------------------------------
 
-    config_table(env_config=env_config, alg_config=alg_config, filepath=filepath, continue_training=True,
+    sac_config_table(env_config=env_config, alg_config=alg_config, filepath=filepath, continue_training=True,
                  original_training_date=initial_training_date)
 
 
@@ -161,10 +138,10 @@ def do_inferencing(env, train_alg, curr_gate):
 
     inference_env_config["U_target"] = target_gate
     inference_env_config['training'] = False
-    inference_env_config['verbose'] = False
     inference_env_config['retraining'] = False
-    env_class = type(env)
-    inference_env = env_class(inference_env_config)
+    inference_env_config['verbose'] = False
+    inference_env = SAC_NoisySingleQubitEnv(inference_env_config)
+
     # ------------------------------------------------------------------------------------
     target_gate = np.array(target_gate)
 
@@ -189,22 +166,21 @@ def do_inferencing(env, train_alg, curr_gate):
 
 
 def main():
-    # original_date = "2025-01-29_23-02-18"
-    original_date = "2025-02-15_19-39-49"
+    original_date = "2025-02-08_00-54-04"
     model_path = "/Users/vishchaudhary/rl-repo/results/" + original_date + "/model_checkpoints"
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
 
-    retrain_gates = [gates.RandomSU2()]
+    # retrain_gates = [ gates.X(), gates.Y(), gates.Z()]
     # retrain_gates = [gates.X()]
-    retrain_name = ""
+    retrain_name = "RandomSU2"
 
-    for gate in retrain_gates:
-        retrain_name += f"{gate}_"
+    # for gate in retrain_gates:
+    #     retrain_name += f"{gate}_"
 
     training_plot_filename = f'{retrain_name}_retraining.png'
 
-    # Modified to be number of episodes for training (in thousands) for EACH retrain gate
-    n_training_iterations = 50
+    # Modified to be number of episodes for training (in thousands)
+    n_training_iterations = 150
     n_episodes_for_inferencing = 1000
 
     ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
@@ -217,7 +193,7 @@ def main():
     # for gate in retrain_gates:
     #     alg = boosted_retraining(alg, gate, n_training_iterations)
 
-    alg, training_time = boosted_retraining(alg, retrain_gates, n_training_iterations, model_path)
+    alg, training_time = boosted_retraining(alg, n_training_iterations, model_path)
 
     save_training_results(training_alg=alg, filepath=save_filepath,
                           filename=training_plot_filename, initial_training_date=original_date,
@@ -233,9 +209,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-

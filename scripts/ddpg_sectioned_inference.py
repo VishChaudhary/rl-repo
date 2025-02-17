@@ -1,7 +1,7 @@
 import ray
 from ray.rllib.algorithms.ddpg import DDPGConfig
 from ray.tune.registry import register_env
-# from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
+from relaqs.environments.DDPG_noisy_single_qubit_env import DDPG_NoisySingleQubitEnv
 from relaqs.save_results import SaveResults
 from relaqs.plot_data import plot_data
 import relaqs.api.gates as gates
@@ -22,8 +22,9 @@ from scipy.stats import pearsonr
 import qutip
 from relaqs.api.utils import *
 
+noise_file = "april/ibmq_belem_month_is_4.json"
 
-def boosted_retraining(training_alg, retrain_gates, n_training_episodes, model_path):
+def training(training_gates, n_training_episodes):
 
     ray.init(num_cpus=14,  # change to your available number of CPUs
              num_gpus=20,
@@ -31,74 +32,80 @@ def boosted_retraining(training_alg, retrain_gates, n_training_episodes, model_p
              ignore_reinit_error=True,
              log_to_driver=False)
 
-    # env_config = training_alg.workers.local_worker().env.return_env_config()
+    env_config = DDPG_NoisySingleQubitEnv.get_default_env_config()
+    # ---------------------> Get quantum noise data <-------------------------
+    t1_list, t2_list, detuning_list = sample_noise_parameters(noise_file)
 
+    # ---------------------> Configure Environment <-------------------------
+    env_config['num_Haar_basis'] = 1
+    env_config['steps_per_Haar'] = 2
 
-    # alg_config = training_alg.workers.local_worker().config
-    # alg_config.environment(NoisySingleQubitEnv, env_config=env_config)
-    # training_alg.config.update_from_dict({"env_config": env_config})
-
-    ###################################################
-    new_alg_config = training_alg.config.copy(copy_frozen=False)
-    env = training_alg.workers.local_worker().env
-    env_config = new_alg_config['env_config']
-    env_config["U_target"] = retrain_gates[0].get_matrix()
+    env_config["U_target"] = training_gates[0].get_matrix()
     env_config["training"] = False
     env_config["retraining"] = True
-    env_config["retraining_gates"] = retrain_gates
+    env_config["retraining_gates"] = training_gates
     env_config["verbose"] = False
-    env_config["steps_per_Haar"] = new_alg_config['env_config']['steps_per_Haar'] + 1
-    # print(env_config["steps_per_Haar"])
 
+    env_config["relaxation_rates_list"] = [t1_list, t2_list]  # using real T1 data
+    env_config["detuning_list"] = detuning_list
+    env_config["relaxation_ops"] = [sigmam(), sigmaz()]
 
-    # new_alg_config['env_config']["U_target"] = retrain_gate.get_matrix()
-    # new_alg_config['twin_q'] = True
-    env_class = type(env)
-    new_alg_config.environment(env_class, env_config=env_config)
-    updated_model = new_alg_config.build()
+    # ---------------------> Configure algorithm<-------------------------
+    alg_config = DDPGConfig()
+    alg_config.framework("torch")
+    alg_config.environment(DDPG_NoisySingleQubitEnv, env_config=env_config)
+    alg_config.callbacks(GateSynthesisCallbacks)
+    alg_config.rollouts(batch_mode="complete_episodes")
+    alg_config.train_batch_size = 256
 
+    alg_config.actor_hidden_activation = "relu"
+    alg_config.critic_hidden_activation = "relu"
 
-    updated_model.restore(model_path)
+    # # ---------------------> Tuned Parameters <-------------------------
 
+    alg_config.actor_hiddens = [1024, 512, 256]
+    alg_config.actor_lr = 5e-5
+    alg_config.critic_lr = 1e-3
+    alg_config.critic_hiddens = [1024, 512, 300]
 
+    alg_config.exploration_config["random_timesteps"] = 3055.8304716435505
+    alg_config.exploration_config["ou_base_scale"] = 0.33536897625927453
+    alg_config.exploration_config["ou_theta"] = 0.31360827370009975
+    alg_config.exploration_config["ou_sigma"] = 0.26940347674578985
+    alg_config.exploration_config["initial_scale"] = 1.1
+    alg_config.exploration_config["scale_timesteps"] = n_training_episodes*1000
+    # alg_config.exploration_config["scale_timesteps"] = 75000
+    alg_config.replay_buffer_config["capacity"] = 200000
 
+    alg_config.target_network_update_freq = 2  # Slows down updates slightly for stability
+    # alg_config.tau = 0.0025  # Makes each target update more meaningful
+    alg_config.tau = 0.0005
+    alg_config.twin_q = True
 
-    ####################################################
+    alg = alg_config.build()
 
-
-    # training_alg = alg_config.build()
-    # ---------------------------------------------------------------------
-
-    training_start_time = get_time()
-    # ---------------------> Train Agent <-------------------------
-    # n_training_episodes *= env_config['num_Haar_basis'] * env_config['steps_per_Haar']
-    # results = [updated_model.train() for _ in range(n_training_episodes)]
-    # -------------------------------------------------------------
-
-    n_training_episodes *= env_config['num_Haar_basis'] * env_config['steps_per_Haar'] * len(retrain_gates)
+    n_training_episodes *= env_config['num_Haar_basis'] * env_config['steps_per_Haar']
 
     update_every_percent = 2
     results = []
-    update_interval =  max(1, int(n_training_episodes * (update_every_percent / 100)))
+    update_interval = max(1, int(n_training_episodes * (update_every_percent / 100)))
+
+    training_start_time = get_time()
 
     for i in range(n_training_episodes):
-        results.append(updated_model.train())
+        results.append(alg.train())
         # Print update every x%
         if (i + 1) % int(update_interval) == 0 or (i + 1) == n_training_episodes:
             percent_complete = (i + 1) / n_training_episodes * 100
             print(f"Training Progress: {percent_complete:.0f}% complete")
 
-    # results = [training_alg.train() for _ in range(n_training_episodes)]
-
     training_end_time = get_time()
-
     training_elapsed_time = training_end_time - training_start_time
-    # print(f"Training Elapsed time: {training_elapsed_time}\n")
 
-    # return updated_model
-    return updated_model, training_elapsed_time
+    return alg, training_elapsed_time
 
-def save_training_results(training_alg, filepath, filename, title_figure, initial_training_date):
+
+def save_training_results(training_alg, filepath, filename, title_figure):
     train_env = training_alg.workers.local_worker().env
     env_config = train_env.return_env_config()
     alg_config = training_alg.workers.local_worker().config
@@ -107,12 +114,11 @@ def save_training_results(training_alg, filepath, filename, title_figure, initia
     sr = SaveResults(train_env, training_alg, save_path=filepath)
     save_dir = sr.save_results()
     plot_data(save_dir, plot_filename=filename,
-              figure_title=f"[NOISY] Re-Training on {title_figure}", gate_switch_array=None)
+              figure_title=f"[NOISY] Training on {title_figure}", gate_switch_array=None)
     print("Results saved to:", save_dir)
     # --------------------------------------------------------------
 
-    config_table(env_config=env_config, alg_config=alg_config, filepath=filepath, continue_training=True,
-                 original_training_date=initial_training_date)
+    config_table(env_config=env_config, alg_config=alg_config, filepath=filepath)
 
 
 def inference_and_save(inference_list, save_dir, train_alg, n_episodes_for_inferencing):
@@ -165,6 +171,7 @@ def do_inferencing(env, train_alg, curr_gate):
     inference_env_config['retraining'] = False
     env_class = type(env)
     inference_env = env_class(inference_env_config)
+
     # ------------------------------------------------------------------------------------
     target_gate = np.array(target_gate)
 
@@ -189,44 +196,44 @@ def do_inferencing(env, train_alg, curr_gate):
 
 
 def main():
-    # original_date = "2025-01-29_23-02-18"
-    original_date = "2025-02-15_19-39-49"
-    model_path = "/Users/vishchaudhary/rl-repo/results/" + original_date + "/model_checkpoints"
-    save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
+    save_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
+    save_filepath = "/Users/vishchaudhary/rl-repo/results/" + save_date
 
-    retrain_gates = [gates.RandomSU2()]
-    # retrain_gates = [gates.X()]
-    retrain_name = ""
+    # training_gates = [gates.RandomSU2(theta_range=(0,0.58))]
+    a = gates.Ry(lower_bound=1.20, upper_bound=1.8)
+    b = gates.Ry(lower_bound=0.20, upper_bound=0.8)
+    c = gates.Rx(lower_bound=0.2, upper_bound=0.8)
+    d = gates.Rx(lower_bound=1.2, upper_bound=1.8)
+    e = gates.Rz(lower_bound=0.2, upper_bound=0.8)
+    f = gates.Rz(lower_bound=1.2, upper_bound=1.8)
+    training_gates = [a,b,c,d,e,f]
+    training_name = ""
 
-    for gate in retrain_gates:
-        retrain_name += f"{gate}_"
+    for gate in training_gates:
+        training_name += f"{gate}_"
 
-    training_plot_filename = f'{retrain_name}_retraining.png'
+    training_plot_filename = f'{training_name}_training.png'
 
     # Modified to be number of episodes for training (in thousands) for EACH retrain gate
-    n_training_iterations = 50
+    n_training_iterations = 85
     n_episodes_for_inferencing = 1000
 
-    ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
-    inferencing_gate = [gates.RandomSU2(), gates.XY_combination(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
-                        gates.X_pi_4()]
+    # RandomGate, Rx, and Ry must be kept as the first 3 gates (order is irrelevant) in order to plot their bloch sphere
+    inferencing_gate = [gates.RandomSU2(), gates.Rx(), gates.Ry(), gates.Rz(),
+                        gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),gates.HS(),gates.XY_combination(),gates.ZX_combination()]
 
-    alg = load_model(model_path)
 
-    # Retrained for all specified pauli gates
-    # for gate in retrain_gates:
-    #     alg = boosted_retraining(alg, gate, n_training_iterations)
-
-    alg, training_time = boosted_retraining(alg, retrain_gates, n_training_iterations, model_path)
+    alg, training_time = training(training_gates, n_training_iterations)
 
     save_training_results(training_alg=alg, filepath=save_filepath,
-                          filename=training_plot_filename, initial_training_date=original_date,
-                          title_figure=retrain_name)
+                          filename=training_plot_filename,
+                          title_figure=training_name)
 
     inference_and_save(inference_list=inferencing_gate, save_dir=save_filepath, train_alg=alg,
                        n_episodes_for_inferencing = n_episodes_for_inferencing)
 
     print(f"Training Elapsed time: \n{training_time}\n")
+    print(f'Results saved to: {save_date}')
 
 # Uses the idea of retraining on just the poorly performing Pauli Gates to see if that will boost overall performance
 # without hurting the inferencing of the other gates

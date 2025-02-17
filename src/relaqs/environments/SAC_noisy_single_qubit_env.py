@@ -86,9 +86,14 @@ class SAC_SingleQubitEnv(gym.Env):
             print(
                 f'Giving max reward---------------------------------------*****************************************************-----------------------------------------------------------------\n')
             return 35
+        # else:
+        #     return (-3 * np.log10(1.0 - fidelity) + np.log10(1.0 - self.prev_fidelity)) + (
+        #                 3 * fidelity - self.prev_fidelity)
+        elif fidelity > 0.7:
+            return (-3 * np.log10(1.0 - fidelity) + np.log10(1.0 - self.prev_fidelity)) + (5 * (fidelity - self.prev_fidelity))
+
         else:
-            return (-3 * np.log10(1.0 - fidelity) + np.log10(1.0 - self.prev_fidelity)) + (
-                        3 * fidelity - self.prev_fidelity)
+            return (-3 * np.log10(1.0 - fidelity) + np.log10(1.0 - self.prev_fidelity)) + (3 * (fidelity - self.prev_fidelity))
 
     def hamiltonian(self, alpha, gamma_magnitude, gamma_phase):
         return alpha * Z + gamma_magnitude * (np.cos(gamma_phase) * X + np.sin(gamma_phase) * Y)
@@ -149,6 +154,9 @@ class SAC_SingleQubitEnv(gym.Env):
         # gamma_magnitude = self.gamma_magnitude_max * np.sign(action[0])
         # gamma_magnitude = self.gamma_magnitude_max / 10 * (action[0] + 1)
         # gamma_magnitude = self.gamma_magnitude_max * action[0]
+        # gamma_magnitude = self.gamma_magnitude_max * np.tanh(action[0])
+        # gamma_phase = self.gamma_phase_max * np.tanh(action[1])
+        # alpha = self.alpha_max * np.tanh(action[2])
         gamma_magnitude = self.gamma_magnitude_max * np.tanh(action[0])
         gamma_phase = self.gamma_phase_max * action[1]
         alpha = self.alpha_max * action[2]

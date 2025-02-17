@@ -1,5 +1,5 @@
 from collections import defaultdict
-from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
+# from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
 import ray
 from relaqs.save_results import SaveResults
 from relaqs.plot_data import plot_data
@@ -15,13 +15,6 @@ from qutip.operators import *
 import qutip
 from relaqs.api.utils import *
 
-
-# def calculate_fidelity(target_gate, generated_unitary):
-#     # print(f'Calculating fidelity between {target_gate}\n and \n{generated_unitary}')
-#     moded_target = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
-#     U_target_dagger = moded_target.conjugate().transpose()
-#     fidelity = float(np.abs(np.trace(U_target_dagger @ generated_unitary))) / (generated_unitary.shape[0])
-#     return fidelity
 
 def ensemble_voting(alg_list, inference_list,  n_episodes_for_inferencing):
     #
@@ -61,9 +54,7 @@ def ensemble_voting(alg_list, inference_list,  n_episodes_for_inferencing):
                 # -----------------------> Inferencing <---------------------------
                 generated_unitary, history = inference(alg, target_gate)
                 fidelity = history[0]
-                # print(f'History: {history}\n')
-                # print(f'Fidelity: {history[0]}\n')
-                # fidelity = calculate_fidelity(target_gate, generated_unitary)
+
                 if fidelity > highest_fidelity:
                     highest_fidelity = fidelity
                     best_alg_index = alg_id
@@ -92,9 +83,10 @@ def ensemble_voting(alg_list, inference_list,  n_episodes_for_inferencing):
 
 
     print(f'File saved to: {save_dir}')
+    ray.shutdown()
     return save_dir
 
-    ray.shutdown()
+
 
 
 def inference(alg, target_gate):
@@ -111,7 +103,9 @@ def inference(alg, target_gate):
     inference_env_config['training'] = False
     inference_env_config['verbose'] = False
     inference_env_config['retraining'] = False
-    inference_env = NoisySingleQubitEnv(inference_env_config)
+    env_class = type(env)
+    inference_env = env_class(inference_env_config)
+    # inference_env = NoisySingleQubitEnv(inference_env_config)
 
     # ------------------------------------------------------------------------------------
     episode_reward = 0.0
@@ -136,15 +130,19 @@ def inference(alg, target_gate):
 
 
 def main() :
-    checkpoint_dates = ["2025-02-06_16-49-10", "2025-02-06_14-27-50", "2025-02-06_21-09-57", "2025-02-06_19-51-54","2025-02-07_13-24-27"]
+    # checkpoint_dates = ["2025-02-06_16-49-10", "2025-02-06_14-27-50", "2025-02-06_21-09-57",
+    #                     "2025-02-06_19-51-54","2025-02-07_13-24-27", "2025-02-08_21-59-21", "2025-02-09_00-01-40"
+    #                     ,"2025-02-13_23-10-17"]
+    checkpoint_dates = ["2025-02-14_11-19-14","2025-02-14_01-04-12","2025-02-14_02-04-50","2025-02-15_13-40-05", "2025-02-15_15-34-09","2025-02-15_16-55-52","2025-02-15_23-19-52","2025-02-16_11-35-17"]
     alg_list = []
 
     n_episodes_for_inferencing = 1000
 
     ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
-    inference_list = [gates.RandomSU2(), gates.XY_combination(), gates.X(), gates.Y(), gates.Z(),
+    inference_list = [gates.RandomSU2(), gates.Rx(),gates.Ry(),gates.Rz(),gates.XY_combination(), gates.X(),
+                      gates.Y(), gates.Z(),
                         gates.H(), gates.S(),
-                        gates.X_pi_4()]
+                        ]
 
     for date in checkpoint_dates:
         model_checkpoint = "/Users/vishchaudhary/rl-repo/results/" + date + "/model_checkpoints"

@@ -143,13 +143,7 @@ class DDPG_SingleQubitEnv(gym.Env):
 
     def parse_actions(self, action):
         # Try changing gamma_magnitude denom
-        # gamma_magnitude = self.gamma_magnitude_max / 2 * (action[0] + 1)
-        # gamma_magnitude = self.gamma_magnitude_max * np.sign(action[0]) * (action[0] ** 2)
-        # gamma_magnitude = self.gamma_magnitude_max * (action[0] + 1)
-        # gamma_magnitude = self.gamma_magnitude_max * np.sign(action[0])
-        # gamma_magnitude = self.gamma_magnitude_max / 10 * (action[0] + 1)
-        # gamma_magnitude = self.gamma_magnitude_max * action[0]
-        gamma_magnitude = self.gamma_magnitude_max * np.tanh(action[0])
+        gamma_magnitude = self.gamma_magnitude_max/2 * (action[0]+1)
         gamma_phase = self.gamma_phase_max * action[1]
         alpha = self.alpha_max * action[2]
         return gamma_magnitude, gamma_phase, alpha
@@ -235,6 +229,7 @@ class DDPG_NoisySingleQubitEnv(DDPG_SingleQubitEnv):
 
     def __init__(self, env_config):
         super().__init__(env_config)
+        self.detuning = None
         self.detuning_list = env_config["detuning_list"]
         self.detuning_update()
         self.original_U_target = env_config["U_target"]
@@ -354,10 +349,6 @@ class DDPG_NoisySingleQubitEnv(DDPG_SingleQubitEnv):
         return info_string
 
     def update_transition_history(self, fidelity, reward, action):
-        # if self.global_episode_num == 1:
-        #     episode_id = 0
-        # else:
-        #     episode_id = self.episode_num
         self.transition_history.append([fidelity, reward, action, self.U, self.original_U_target, self.episode_id])
 
     def get_self_U(self):
@@ -387,7 +378,10 @@ class DDPG_NoisySingleQubitEnv(DDPG_SingleQubitEnv):
         else:
             idx = sample_even_distribution(self.num_retraining_gates)
             gate = self.retraining_gates[idx]
-            self.original_U_target = gate.get_matrix()
+            if isinstance(gate, np.ndarray):
+                self.original_U_target = gate
+            else:
+                self.original_U_target = gate.get_matrix()
             self.U_target = self.unitary_to_superoperator(self.original_U_target)
 
         if self.verbose:

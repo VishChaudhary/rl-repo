@@ -19,51 +19,36 @@ from relaqs.api.utils import *
 import re
 import torch
 import matplotlib.pyplot as plt
+from relaqs.api.utils import *
 
 # Function to sample numbers evenly from 0 to x
-def sample_even_distribution(n, x):
-    return np.random.choice(np.arange(0, x + 1), size=n, replace=True)
+
 
 def main():
-    # # Set x and number of samples
-    # x = 5  # Example value for x, can be changed
-    # n_samples = 50000  # Number of samples to take
-    #
-    # # Generate samples
-    # samples = sample_even_distribution(n_samples, x)
-    #
-    # # Count occurrences of each sampled number
-    # unique_values, counts = np.unique(samples, return_counts=True)
-    #
-    # # Plot bar chart
-    # plt.figure(figsize=(8, 5))
-    # plt.bar(unique_values, counts, color='skyblue', edgecolor='black')
-    #
-    # # Label bars with their count
-    # for i, count in zip(unique_values, counts):
-    #     plt.text(i, count + 5, str(count), ha='center', fontsize=10)
-    #
-    # # Formatting the plot
-    # plt.xlabel("Sampled Value")
-    # plt.ylabel("Count")
-    # plt.title(f"Count of {n_samples} Random Samples (0 to {x})")
-    # plt.xticks(range(0, x + 1))
-    # plt.grid(axis='y', linestyle='--', alpha=0.7)
-    #
-    # # Show the plot
-    # plt.show()
+    # a = gates.Ry(lower_bound=1.20, upper_bound=1.8)
+    # b = gates.Ry(lower_bound=0.20, upper_bound=0.8)
+    # c = gates.Rx(lower_bound=0.2, upper_bound=0.8)
+    # d = gates.Rx(lower_bound=1.2, upper_bound=1.8)
+    # e = gates.Rz(lower_bound=0.2, upper_bound=0.8)
+    # f = gates.Rz(lower_bound=1.2, upper_bound=1.8)
+    # print(g)
+    # print(gates.H().get_matrix())
+    # print(gates.S().get_matrix())
+    # print(gates.HS().get_matrix())
+    l = gates.RandomSU2(theta_range=(0,0.5))
 
+    gate_list = []
+    for _ in range(1000):
+        # gate_list.append(a.get_matrix())
+        # gate_list.append(b.get_matrix())
+        # gate_list.append(c.get_matrix())
+        # gate_list.append(d.get_matrix())
+        gate_list.append(l.get_matrix())
 
+    visualize_gates(gate_list)
+    # print(gate_list[0])
+    # print(check_unitary(gates.H().get_matrix()))
 
-    for _ in range(10):
-        xy_gate = gates.XY_combination()
-        xy_mat = xy_gate.get_matrix()
-        xy_mat_conjT = xy_mat.conj().T
-
-        unit1 = np.dot(xy_mat, xy_mat_conjT)
-        unit2 = np.dot(xy_mat_conjT, xy_mat)
-
-        print(f'\n{xy_mat}\n')
 
 
 

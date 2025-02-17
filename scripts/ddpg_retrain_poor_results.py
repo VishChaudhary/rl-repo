@@ -1,7 +1,7 @@
 import ray
 from ray.rllib.algorithms.ddpg import DDPGConfig
 from ray.tune.registry import register_env
-# from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
+from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
 from relaqs.save_results import SaveResults
 from relaqs.plot_data import plot_data
 import relaqs.api.gates as gates
@@ -40,21 +40,17 @@ def boosted_retraining(training_alg, retrain_gates, n_training_episodes, model_p
 
     ###################################################
     new_alg_config = training_alg.config.copy(copy_frozen=False)
-    env = training_alg.workers.local_worker().env
     env_config = new_alg_config['env_config']
-    env_config["U_target"] = retrain_gates[0].get_matrix()
+    env_config["U_target"] = retrain_gates[0]
     env_config["training"] = False
     env_config["retraining"] = True
     env_config["retraining_gates"] = retrain_gates
     env_config["verbose"] = False
-    env_config["steps_per_Haar"] = new_alg_config['env_config']['steps_per_Haar'] + 1
-    # print(env_config["steps_per_Haar"])
+    # env_config["steps_per_Haar"] = 4
 
 
-    # new_alg_config['env_config']["U_target"] = retrain_gate.get_matrix()
-    # new_alg_config['twin_q'] = True
-    env_class = type(env)
-    new_alg_config.environment(env_class, env_config=env_config)
+    new_alg_config.environment(NoisySingleQubitEnv, env_config=env_config)
+    # new_alg_config.train_batch_size = env_config["steps_per_Haar"]
     updated_model = new_alg_config.build()
 
 
@@ -163,8 +159,8 @@ def do_inferencing(env, train_alg, curr_gate):
     inference_env_config['training'] = False
     inference_env_config['verbose'] = False
     inference_env_config['retraining'] = False
-    env_class = type(env)
-    inference_env = env_class(inference_env_config)
+    inference_env = NoisySingleQubitEnv(inference_env_config)
+
     # ------------------------------------------------------------------------------------
     target_gate = np.array(target_gate)
 
@@ -190,24 +186,31 @@ def do_inferencing(env, train_alg, curr_gate):
 
 def main():
     # original_date = "2025-01-29_23-02-18"
-    original_date = "2025-02-15_19-39-49"
+    original_date = "2025-02-11_15-00-33"
     model_path = "/Users/vishchaudhary/rl-repo/results/" + original_date + "/model_checkpoints"
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
 
-    retrain_gates = [gates.RandomSU2()]
+    # retrain_gates = [gates.RandomSU2()]
+    u_target_list_below, u_target_list_above = get_poor_results(original_date=original_date, fidelity_threshold= 0.8)
+    print(f"Number of gates below threshold: {len(u_target_list_below)}\nNumber of gates above threshold: {len(u_target_list_above)}\n")
     # retrain_gates = [gates.X()]
-    retrain_name = ""
+    retrain_gates = u_target_list_below
+    # visualize_gates(retrain_gates)
 
-    for gate in retrain_gates:
-        retrain_name += f"{gate}_"
+    retrain_name = "poor_results"
+
+    # if retrain_gates == u_target_list_below:
+    #     retrain_name = "poor_results"
+    # elif retrain_gates == u_target_list_above:
+    #     retrain_name = "good_results"
 
     training_plot_filename = f'{retrain_name}_retraining.png'
 
     # Modified to be number of episodes for training (in thousands) for EACH retrain gate
-    n_training_iterations = 50
+    n_training_iterations = 4
     n_episodes_for_inferencing = 1000
 
-    ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
+    #RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
     inferencing_gate = [gates.RandomSU2(), gates.XY_combination(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
                         gates.X_pi_4()]
 

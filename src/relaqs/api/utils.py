@@ -49,6 +49,78 @@ def preprocess_matrix_string(matrix_str):
     matrix_str = matrix_str.replace('] [', '], [')
     return matrix_str
 
+
+def check_unitary(matrices):
+    """
+    Check if a single matrix or all matrices in a list are unitary.
+
+    Parameters:
+    matrices (np.ndarray or list of np.ndarray): A single matrix or a list of matrices.
+
+    Returns:
+    bool: True if the matrix is unitary or if all matrices in the list are unitary, False otherwise.
+    """
+
+    def is_unitary(matrix):
+        """Helper function to check if a single matrix is unitary."""
+        if not isinstance(matrix, np.ndarray):
+            raise TypeError("Input must be a numpy array.")
+
+        if matrix.shape[0] != matrix.shape[1]:
+            return False  # Must be square
+
+        identity_mat = np.eye(matrix.shape[0], dtype=np.complex128)
+        return np.allclose(matrix.conj().T @ matrix, identity_mat) and np.allclose(matrix @ matrix.conj().T, identity_mat)
+
+    # If input is a single matrix, return its unitary check result
+    if isinstance(matrices, np.ndarray):
+        return is_unitary(matrices)
+
+    # If input is a list, return True only if all matrices are unitary
+    elif isinstance(matrices, list):
+        return all(is_unitary(matrix) for matrix in matrices)
+
+    else:
+        raise TypeError("Input must be a numpy array or a list of numpy arrays.")
+
+
+def visualize_gates(gates, save_dir = None):
+    bloch_vectors = []
+    for gate in gates:
+        vector = np.matmul(gate, np.array([1, 0]))
+        q_obj = qutip.Qobj(vector)
+        bloch_vectors.append(q_obj)
+
+    bloch_sphere = qutip.Bloch()
+    bloch_sphere.add_states(bloch_vectors)
+
+    # Rotate view to see the back of the Bloch sphere
+    bloch_sphere.view = [-60, 30]
+
+    # Prevent cropping by increasing frame transparency and scaling
+    bloch_sphere.frame_alpha = 0.3  # Make the frame slightly transparent
+    bloch_sphere.font_size = 10  # Adjust label size to prevent overlap
+    bloch_sphere.scale = [1.0]  # Prevent zooming in
+
+    # # Fix the figure size and aspect ratio
+    # fig = plt.figure(figsize=(6, 6))  # Adjust figure size
+    # ax = fig.add_subplot(111, projection='3d')
+    #
+    # # Set axis limits to prevent zoom-in/cropping
+    # ax.set_xlim([-1.2, 1.2])
+    # ax.set_ylim([-1.2, 1.2])
+    # ax.set_zlim([-1.2, 1.2])
+    #
+    # # Render Bloch sphere
+    # bloch_sphere.fig = fig
+    # bloch_sphere.axes = ax
+    if save_dir:
+        filename = f'Visualisation of Gates'
+        bloch_sphere.save(name = os.path.join(save_dir,filename), format = "png")
+    else:
+        bloch_sphere.show()
+
+
 def create_self_U_textfile(save_filepath, inference_gate, calculated_target, target_gate):
 
     super_op_target_gate = (spre(Qobj(target_gate)) * spost(Qobj(target_gate))).data.toarray()
@@ -188,7 +260,35 @@ def save_alg_names_to_file(alg_names, save_dir):
             file.write(f"Alg{i}: {name}\n")
 
 
+def get_poor_results(original_date, fidelity_threshold=0.9, verbose=False):
+    results_path = "/Users/vishchaudhary/rl-repo/results/" + original_date + "/RandomSU2/RandomSU2_env_data.csv"
+    # results_path = "/Users/vishchaudhary/rl-repo/results/" + original_date + "/env_data.csv"
+    results_df = pd.read_csv(results_path, header=0)
+    results_above_threshold = results_df[results_df.iloc[:, 0] >= fidelity_threshold]
+    results_below_threshold = results_df[results_df.iloc[:, 0] < fidelity_threshold]
 
+    preProcessed_u_target_below = results_below_threshold.iloc[:, 4].apply(preprocess_matrix_string)
+    u_target_list_below = [np.array(eval(m)) for m in preProcessed_u_target_below]
+    u_target_list_below = np.array(u_target_list_below)
+
+    preProcessed_u_target_above = results_above_threshold.iloc[:, 4].apply(preprocess_matrix_string)
+    u_target_list_above = [np.array(eval(m)) for m in preProcessed_u_target_above]
+    u_target_list_above = np.array(u_target_list_above)
+
+    if verbose:
+        print(f"Number of results below threshold: {len(u_target_list_below)}\n")
+        print(f"Number of results above threshold: {len(u_target_list_above)}\n")
+
+        print(f"Type of u_target_list_below: {type(u_target_list_below)}")
+        print(f"Type of u_target_list_above: {type(u_target_list_above)}")
+
+        print(f"Type of u_target: {type(u_target_list_below[0])}\n")
+        print(f"Type of u_target: {type(u_target_list_above[0])}\n")
+
+        print(f"Result below threshold: {u_target_list_below[1]}\n")
+        print(f"Result above threshold: {u_target_list_above[1]}\n")
+
+    return u_target_list_below, u_target_list_above
 
 def plot_multiple_visuals(df, figure_title, save_dir, plot_filename, bin_step=0.1, inf_count=None,
                           fidelity_threshold=0.8, gate=None):
@@ -247,6 +347,7 @@ def plot_multiple_visuals(df, figure_title, save_dir, plot_filename, bin_step=0.
     plt.tight_layout()
     if save_dir:
         plt.savefig(save_dir + plot_filename)
+        plt.close(fig)
     else:
         plt.show()
 
@@ -343,7 +444,7 @@ def plot_multiple_visuals(df, figure_title, save_dir, plot_filename, bin_step=0.
 
     ##Plot bloch sphere for RandomSU2
 
-    if inf_count < 2:
+    if inf_count < 3:
         # Initialize a dictionary to store final states categorized by fidelity range
         fidelity_bins = {round(i, 1): [] for i in np.arange(0.0, 1.0, 0.1)}
 
@@ -383,6 +484,89 @@ def network_config_creator(alg_config):
 
     return network_config
 
+def sac_config_table(env_config, alg_config, filepath, continue_training=False, original_training_date = None):
+    filtered_env_config = {}
+    filtered_alg_config = {}
+
+    env_config_default = {
+        "num_Haar_basis": 1,
+        "steps_per_Haar": 2,
+        "training": True,
+        "retraining": False,
+    }
+
+    for key in env_config_default.keys():
+        filtered_env_config[key] = env_config[key]
+
+    env_data = {
+        "Config Name": list(filtered_env_config.keys()),
+        "Current Value": list(filtered_env_config.values()),
+    }
+
+    default_lr = {
+        "actor_learning_rate": 3e-4,
+        "critic_learning_rate": 3e-4,
+        "entropy_learning_rate": 3e-4,
+    }
+
+    default_q_model_config = {
+        "fcnet_hiddens": "[256, 256]",
+        "fcnet_activation": "relu",
+    }
+    default_policy_model_config = {
+        "fcnet_hiddens": "[256, 256]",
+        "fcnet_activation": "relu",
+    }
+
+    other_default_config = {
+        "num_steps_sampled_before_learning_starts": 1500,
+        "twin_q": True
+    }
+
+    # for key in default_q_model_config.keys():
+    #     filtered_alg_config[key] = alg_config["q_model_config"][key]
+    #
+    # for key in default_policy_model_config.keys():
+    #     filtered_alg_config[key] = alg_config["policy_model_config"][key]
+
+    for key in other_default_config.keys():
+        filtered_alg_config[key] = alg_config[key]
+
+    for key in default_lr:
+        filtered_alg_config[key] = alg_config["optimization"][key]
+
+    alg_data = {
+        "Config Name": list(filtered_alg_config.keys()),
+        "Current Value": list(filtered_alg_config.values()),
+    }
+
+    env_df = pd.DataFrame(env_data)
+    alg_df = pd.DataFrame(alg_data)
+
+    with open(filepath + "sac_config_table.txt", "w") as f:
+        # Write the table header with a border
+        f.write("+------------------------------------------------+----------------------+\n")
+        f.write("|                  Config Name                   |     Current Value    |\n")
+        f.write("+------------------------------------------------+----------------------+\n")
+
+        for index, row in env_df.iterrows():
+            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <21} |\n")
+        f.write("+------------------------------------------------+----------------------+\n")
+
+        for index, row in alg_df.iterrows():
+            f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <21} |\n")
+        f.write("+------------------------------------------------+----------------------+\n")
+
+        f.write(f"Continuation from previous training: {continue_training}\n")
+        if continue_training:
+            f.write(f"Training continued from results on: {original_training_date}\n")
+
+
+
+
+
+
+
 
 def config_table(env_config, alg_config, filepath, continue_training=False, original_training_date = None):
     filtered_env_config = {}
@@ -392,8 +576,10 @@ def config_table(env_config, alg_config, filepath, continue_training=False, orig
     env_config_default = {
         "num_Haar_basis": 1,
         "steps_per_Haar": 2,
-        "training": True
+        "training": True,
+        "retraining": False,
     }
+
 
     network_config_default = {
         "actor_lr": 1e-3,
@@ -445,7 +631,7 @@ def config_table(env_config, alg_config, filepath, continue_training=False, orig
     network_df = pd.DataFrame(network_data)
     explor_df = pd.DataFrame(explor_data)
 
-    with open(filepath + "config_table.txt", "w") as f:
+    with open(filepath + "ddpg_config_table.txt", "w") as f:
         # Write the table header with a border
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
         f.write("|                  Config Name                   |     Current Value    |    Default Value   |\n")
@@ -462,8 +648,6 @@ def config_table(env_config, alg_config, filepath, continue_training=False, orig
         for index, row in network_df.iterrows():
             f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <21} | {row['Default Value']: <18} |\n")
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
-        # f.write(f"Plot when target changes: {plot_target_change}\n")
-        # f.write(f"N Training Iterations: {n_training_iterations}\n")
         f.write(f"Continuation from previous training: {continue_training}\n")
         if continue_training:
             f.write(f"Training continued from results on: {original_training_date}\n")

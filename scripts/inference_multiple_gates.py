@@ -77,7 +77,8 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     alg_config.environment(NoisySingleQubitEnv, env_config=env_config)
     alg_config.callbacks(GateSynthesisCallbacks)
     alg_config.rollouts(batch_mode="complete_episodes")
-    alg_config.train_batch_size = env_config["steps_per_Haar"]
+    # alg_config.train_batch_size = env_config["steps_per_Haar"]
+    alg_config.train_batch_size = 256
 
     ### working 1-3 sets
     alg_config.actor_hidden_activation = "relu"
@@ -85,13 +86,16 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # alg_config.num_steps_sampled_before_learning_starts = 10000
 
     # # ---------------------> Tuned Parameters <-------------------------
-    alg_config.actor_lr = 5.057359278283752e-05
-    alg_config.critic_lr = 9.959658940947128e-05
-    alg_config.actor_hiddens = [200] * 10
-    alg_config.critic_hiddens = [100] * 10
+    # alg_config.actor_lr = 5.057359278283752e-05
+    # alg_config.critic_lr = 9.959658940947128e-05
+    # alg_config.actor_hiddens = [200] * 10
+    # alg_config.critic_hiddens = [100] * 10
 
-    # alg_config.actor_hiddens = [256] * 10
-    # alg_config.critic_hiddens = [200] * 10
+
+    alg_config.actor_hiddens = [1024, 512, 256]
+    alg_config.actor_lr = 5e-5
+    alg_config.critic_lr = 1e-3
+    alg_config.critic_hiddens = [1024, 512, 300]
 
     # ---------------------> 2025-01-22_05-50-08-HPT: Tuned Parameters <-------------------------
     # alg_config.actor_lr = 2.5512592152219747e-05
@@ -116,7 +120,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     alg_config.exploration_config["initial_scale"] = 1.1
     # alg_config.exploration_config["initial_scale"] = 1.0
 
-    # alg_config.exploration_config["scale_timesteps"] = 20000
+    alg_config.exploration_config["scale_timesteps"] = 75000
     # alg_config.exploration_config["scale_timesteps"] = 18750
     alg_config.twin_q = True
     # alg_config.smooth_target_policy = True
@@ -267,8 +271,8 @@ def main():
 
     train_gate = gates.RandomSU2()
 
-    ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
-    inferencing_gate = [gates.RandomSU2(), gates.XY_combination(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
+    ##RandomGate must be kept as first in the array and Rx & Ry must be kept as second and third
+    inferencing_gate = [gates.RandomSU2(), gates.Rx(), gates.Ry(),gates.Rz(), gates.XY_combination(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
                         gates.X_pi_4()]
 
     run(train_gate, inferencing_gate, n_training_iterations, n_episodes_for_inferencing, save, plot, noise_file,

@@ -3,7 +3,7 @@
 import ray
 from ray.rllib.algorithms.sac import SACConfig
 from ray.tune.registry import register_env
-from relaqs.environments.noisy_single_qubit_env import NoisySingleQubitEnv
+from relaqs.environments.SAC_noisy_single_qubit_env import SAC_NoisySingleQubitEnv
 from relaqs.save_results import SaveResults
 from relaqs.plot_data import plot_data
 import relaqs.api.gates as gates
@@ -44,7 +44,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
 
     # ---------------------> Configure algorithm and Environment <-------------------------
     # Initialize default configuration
-    env_config = NoisySingleQubitEnv.get_default_env_config()
+    env_config = SAC_NoisySingleQubitEnv.get_default_env_config()
 
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
     training_plot_filename = f'training_{train_gate}.png'
@@ -56,7 +56,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # ---------------------> Configure Environment <-------------------------
     env_config["U_target"] = train_gate.get_matrix()
     env_config['num_Haar_basis'] = 1
-    env_config['steps_per_Haar'] = 2
+    env_config['steps_per_Haar'] = 3
     env_config['training'] = True
     env_config['retraining'] = False
 
@@ -75,7 +75,7 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # ---------------------> Configure algorithm<-------------------------
     alg_config = SACConfig()
     alg_config.framework("torch")
-    alg_config.environment(NoisySingleQubitEnv, env_config=env_config)
+    alg_config.environment(SAC_NoisySingleQubitEnv, env_config=env_config)
     alg_config.callbacks(SACGateSynthesisCallbacks)
     alg_config.rollouts(batch_mode="complete_episodes")
     alg_config.train_batch_size = env_config["steps_per_Haar"]
@@ -83,37 +83,38 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     # ---------------------> Tuned Parameters <-------------------------
     # Learning rates for actor and critic
 ###############################################This is not properly set#########################
-    # alg_config.optimization = {
-    #     "actor_learning_rate": 3e-4,
-    #     "critic_learning_rate": 3e-4,
-    #     "entropy_learning_rate": 3e-4,
-    # }
+
     # alg_config.optimization = {
     #     "actor_learning_rate": 5.057359278283752e-05,
     #     "critic_learning_rate": 9.959658940947128e-05,
     #     "entropy_learning_rate": 3e-4,
     # }
 
+    # alg_config.optimization = {
+    # "actor_learning_rate": 1e-4,
+    # "critic_learning_rate": 1.5e-4,
+    # "entropy_learning_rate": 5e-6,
+    # }
     alg_config.optimization = {
-    "actor_learning_rate": 2e-4,
-    "critic_learning_rate": 3e-4,
-    "entropy_learning_rate": 5e-5,
+        "actor_learning_rate": 5e-5,
+        "critic_learning_rate": 9e-5,
+        "entropy_learning_rate": 4e-5,
     }
 
-    # alg_config.initial_alpha = 0.1  # Starting value for entropy coefficient
 
     # Hidden layer configurations for policy and Q-value models
     #Actor
     alg_config.policy_model_config = {
-        "fcnet_hiddens": [256] * 10,
+        "fcnet_hiddens": [256] * 5,
         "fcnet_activation": "relu",
     }
     #Critic
     alg_config.q_model_config = {
-        "fcnet_hiddens": [256] * 10,
+        "fcnet_hiddens": [256] * 5,
         "fcnet_activation": "relu",
     }
 
+    # alg_config.initial_alpha = 0.1  # Starting value for entropy coefficient
     # alg_config.num_steps_sampled_before_learning_starts = 10000
 
     # Entropy configuration (specific to SAC)
@@ -133,8 +134,8 @@ def run(train_gate, inference_gate, n_training_iterations=1, n_episodes_for_infe
     training_start_time = get_time()
     # print(ray.available_resources())
     # ---------------------> Train Agent <-------------------------
-    n_training_iterations *= env_config['num_Haar_basis'] * env_config['steps_per_Haar'] * 8
-    update_every_percent = 5
+    n_training_iterations *= env_config['num_Haar_basis'] * env_config['steps_per_Haar'] * 9
+    update_every_percent = 2
     results = []
     # update_interval = n_training_iterations * (update_every_percent / 100)
     update_interval =  max(1, int(n_training_iterations * (update_every_percent / 100)))
@@ -230,7 +231,7 @@ def do_inferencing(env, alg, gate):
     inference_env_config['training'] = False
     inference_env_config['verbose'] = False
     inference_env_config['retraining'] = False
-    inference_env = NoisySingleQubitEnv(inference_env_config)
+    inference_env = SAC_NoisySingleQubitEnv(inference_env_config)
 
     # ------------------------------------------------------------------------------------
     target_gate = np.array(target_gate)
@@ -257,7 +258,7 @@ def do_inferencing(env, alg, gate):
 
 def main():
     # Modified to be number of episodes for training (in thousands)
-    n_training_iterations = 75
+    n_training_iterations = 350
     n_episodes_for_inferencing = 1000
 
     save = True
