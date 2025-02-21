@@ -75,8 +75,7 @@ def training(training_gates, n_training_episodes):
     alg_config.exploration_config["initial_scale"] = 1.1
     alg_config.exploration_config["scale_timesteps"] = n_training_episodes*1000
     # alg_config.exploration_config["scale_timesteps"] = 75000
-    alg_config.replay_buffer_config["capacity"] = 200000
-
+    # alg_config.replay_buffer_config["capacity"] = 200000
     alg_config.target_network_update_freq = 2  # Slows down updates slightly for stability
     # alg_config.tau = 0.0025  # Makes each target update more meaningful
     alg_config.tau = 0.0005
@@ -215,7 +214,7 @@ def main():
     training_plot_filename = f'{training_name}_training.png'
 
     # Modified to be number of episodes for training (in thousands) for EACH retrain gate
-    n_training_iterations = 85
+    n_training_iterations = 75
     n_episodes_for_inferencing = 1000
 
     # RandomGate, Rx, and Ry must be kept as the first 3 gates (order is irrelevant) in order to plot their bloch sphere
