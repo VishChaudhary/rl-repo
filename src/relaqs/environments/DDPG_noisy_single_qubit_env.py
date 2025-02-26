@@ -143,7 +143,7 @@ class DDPG_SingleQubitEnv(gym.Env):
 
     def parse_actions(self, action):
         # Try changing gamma_magnitude denom
-        gamma_magnitude = self.gamma_magnitude_max/2 * (action[0]+1)
+        gamma_magnitude = self.gamma_magnitude_max * action[0]
         gamma_phase = self.gamma_phase_max * action[1]
         alpha = self.alpha_max * action[2]
         return gamma_magnitude, gamma_phase, alpha

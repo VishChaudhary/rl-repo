@@ -47,7 +47,7 @@ def boosted_retraining(training_alg, retrain_gates, n_training_episodes, model_p
     env_config["retraining"] = True
     env_config["retraining_gates"] = retrain_gates
     env_config["verbose"] = False
-    env_config["steps_per_Haar"] = new_alg_config['env_config']['steps_per_Haar'] + 1
+    # env_config["steps_per_Haar"] = new_alg_config['env_config']['steps_per_Haar'] + 1
     # print(env_config["steps_per_Haar"])
 
 
@@ -190,7 +190,7 @@ def do_inferencing(env, train_alg, curr_gate):
 
 def main():
     # original_date = "2025-01-29_23-02-18"
-    original_date = "2025-02-15_19-39-49"
+    original_date = "2025-02-14_02-04-50"
     model_path = "/Users/vishchaudhary/rl-repo/results/" + original_date + "/model_checkpoints"
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S/")
 
@@ -204,12 +204,13 @@ def main():
     training_plot_filename = f'{retrain_name}_retraining.png'
 
     # Modified to be number of episodes for training (in thousands) for EACH retrain gate
-    n_training_iterations = 50
-    n_episodes_for_inferencing = 1000
+    n_training_iterations = 1
+    n_episodes_for_inferencing = 10000
 
     ##RandomGate must be kept as first in the array and XY_combination MUST be kept as second in the array
-    inferencing_gate = [gates.RandomSU2(), gates.XY_combination(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
-                        gates.X_pi_4()]
+    # inferencing_gate = [gates.RandomSU2(), gates.XY_combination(), gates.I(), gates.X(), gates.Y(), gates.Z(), gates.H(), gates.S(),
+    #                     gates.X_pi_4()]
+    inferencing_gate = [gates.RandomSU2()]
 
     alg = load_model(model_path)
 

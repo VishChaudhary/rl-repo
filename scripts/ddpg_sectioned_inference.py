@@ -63,23 +63,31 @@ def training(training_gates, n_training_episodes):
 
     # # ---------------------> Tuned Parameters <-------------------------
 
-    alg_config.actor_hiddens = [1024, 512, 256]
-    alg_config.actor_lr = 5e-5
-    alg_config.critic_lr = 1e-3
-    alg_config.critic_hiddens = [1024, 512, 300]
+    # alg_config.actor_hiddens = [1024, 512, 256]
+    # alg_config.actor_lr = 5e-5
+    # alg_config.critic_lr = 1e-3
+    # alg_config.critic_hiddens = [1024, 512, 300]
+    #
+    # alg_config.exploration_config["random_timesteps"] = 3055.8304716435505
+    # alg_config.exploration_config["ou_base_scale"] = 0.33536897625927453
+    # alg_config.exploration_config["ou_theta"] = 0.31360827370009975
+    # alg_config.exploration_config["ou_sigma"] = 0.26940347674578985
+    # alg_config.exploration_config["initial_scale"] = 1.1
+    # alg_config.exploration_config["scale_timesteps"] = n_training_episodes*1000
+    # # alg_config.exploration_config["scale_timesteps"] = 75000
+    # # alg_config.replay_buffer_config["capacity"] = 200000
+    # alg_config.target_network_update_freq = 2  # Slows down updates slightly for stability
+    # # alg_config.tau = 0.0025  # Makes each target update more meaningful
+    # alg_config.tau = 0.0005
+    # alg_config.twin_q = True
 
-    alg_config.exploration_config["random_timesteps"] = 3055.8304716435505
-    alg_config.exploration_config["ou_base_scale"] = 0.33536897625927453
-    alg_config.exploration_config["ou_theta"] = 0.31360827370009975
-    alg_config.exploration_config["ou_sigma"] = 0.26940347674578985
-    alg_config.exploration_config["initial_scale"] = 1.1
-    alg_config.exploration_config["scale_timesteps"] = n_training_episodes*1000
-    # alg_config.exploration_config["scale_timesteps"] = 75000
-    # alg_config.replay_buffer_config["capacity"] = 200000
-    alg_config.target_network_update_freq = 2  # Slows down updates slightly for stability
-    # alg_config.tau = 0.0025  # Makes each target update more meaningful
-    alg_config.tau = 0.0005
-    alg_config.twin_q = True
+    #---------------------------------Collins Configs---------------------------------
+
+    alg_config.actor_lr = 4e-5
+    alg_config.critic_lr = 5e-4
+    alg_config.num_steps_sampled_before_learning_starts = 100
+    alg_config.actor_hiddens = [300,300,300,300,300]
+    alg_config.exploration_config["scale_timesteps"] = 1000
 
     alg = alg_config.build()
 
@@ -199,13 +207,14 @@ def main():
     save_filepath = "/Users/vishchaudhary/rl-repo/results/" + save_date
 
     # training_gates = [gates.RandomSU2(theta_range=(0,0.58))]
-    a = gates.Ry(lower_bound=1.20, upper_bound=1.8)
-    b = gates.Ry(lower_bound=0.20, upper_bound=0.8)
-    c = gates.Rx(lower_bound=0.2, upper_bound=0.8)
-    d = gates.Rx(lower_bound=1.2, upper_bound=1.8)
-    e = gates.Rz(lower_bound=0.2, upper_bound=0.8)
-    f = gates.Rz(lower_bound=1.2, upper_bound=1.8)
-    training_gates = [a,b,c,d,e,f]
+    # a = gates.Ry(lower_bound=1.20, upper_bound=1.8)
+    # b = gates.Ry(lower_bound=0.20, upper_bound=0.8)
+    # c = gates.Rx(lower_bound=0.2, upper_bound=0.8)
+    # d = gates.Rx(lower_bound=1.2, upper_bound=1.8)
+    # e = gates.Rz(lower_bound=0.2, upper_bound=0.8)
+    # f = gates.Rz(lower_bound=1.2, upper_bound=1.8)
+    # training_gates = [a,b,c,d,e,f]
+    training_gates = [gates.RandomSU2()]
     training_name = ""
 
     for gate in training_gates:
