@@ -26,27 +26,105 @@ def run(env=ChangingTargetEnv, n_training_episodes=1, u_target_list = [gates.Ran
     env_config["U_target_list"] = u_target_list
     env_config["verbose"] = False
 
-    # ---------------------> Get quantum noise data <-------------------------
-    t1_list, t2_list, detuning_list = sample_noise_parameters(t1_t2_noise_file, detuning_noise_file)
-    env_config["relaxation_rates_list"] = [t1_list, t2_list]  # using real T1 data
-    env_config["detuning_list"] = detuning_list
+    if env == NoisyChangingTargetEnv:
+        # ---------------------> Get quantum noise data <-------------------------
+        print("Noisy Changing Target Noise Initialized")
+        t1_list, t2_list, detuning_list = sample_noise_parameters(t1_t2_noise_file, detuning_noise_file)
+        env_config["relaxation_rates_list"] = [t1_list, t2_list]  # using real T1 data
+        env_config["detuning_list"] = detuning_list
+
 
     alg_config.environment(env, env_config=env_config)
 
     alg_config.rollouts(batch_mode="complete_episodes")
 
-    #---------------------------------Collins Configs---------------------------------
+    #---------------------------------Configs---------------------------------
     ### working 1-3 sets
-    alg_config.actor_lr = 4e-5
-    alg_config.critic_lr = 5e-4
+    # alg_config.actor_lr = 7e-5
+    # alg_config.critic_lr = 2e-4
+    #
+    # alg_config.actor_hidden_activation = "relu"
+    # alg_config.critic_hidden_activation = "relu"
+    # alg_config.num_steps_sampled_before_learning_starts = 500
+    # alg_config.actor_hiddens = [300, 300, 300, 300, 300]
+    # alg_config.critic_hiddens = [400, 400, 300]
+    # # alg_config.exploration_config["scale_timesteps"] = 1000
+    # alg_config.train_batch_size = 256
+    #
+    # alg_config.tau = 0.0002
+    # alg_config.target_network_update_freq = 4
+    # alg_config.grad_clip = 10.0
+    #
+    # alg_config.exploration_config = {
+    #     "type": "OrnsteinUhlenbeckNoise",
+    #     "random_timesteps": 1000,
+    #     "initial_scale": 1.0,  # Start with full noise
+    #     "final_scale": 0.1,  # End with zero noise
+    #     "scale_timesteps": 50000,  # Over 30,000 timesteps (adjust as needed)
+    #     "ou_base_scale": 0.1,  # Base OU noise amplitude
+    #     "ou_theta": 0.15,  # OU theta
+    #     "ou_sigma": 0.2,  # OU sigma
+    # }
+    alg_config["actor_hiddens"] = [400, 400, 300, 300]
+    alg_config["critic_hiddens"] = [400, 400, 300]
+    alg_config["actor_hidden_activation"] = "relu"
+    alg_config["critic_hidden_activation"] = "relu"
 
-    alg_config.actor_hidden_activation = "relu"
-    alg_config.critic_hidden_activation = "relu"
-    alg_config.num_steps_sampled_before_learning_starts = 100
-    alg_config.actor_hiddens = [300, 300, 300, 300, 300]
-    alg_config.exploration_config["scale_timesteps"] = 1000
-    alg_config.train_batch_size = 128
-    # alg_config.twin_q = True
+    # 2. Learning Rates
+    alg_config["actor_lr"] = 8e-5
+    alg_config["critic_lr"] = 3e-4
+
+    # 3. Warm-Up and Batch Size
+    alg_config["num_steps_sampled_before_learning_starts"] = 1000
+    alg_config["train_batch_size"] = 256
+
+    # 4. Target Network Updates & Stabilization
+    alg_config["tau"] = 0.0002
+    alg_config["target_network_update_freq"] = 4
+    alg_config["grad_clip"] = 10.0
+
+    # 5. Exploration (Ornstein-Uhlenbeck Noise)
+    alg_config["exploration_config"] = {
+        "type": "OrnsteinUhlenbeckNoise",
+        "random_timesteps": 2000,
+        "initial_scale": 1.0,
+        "final_scale": 0.05,
+        "scale_timesteps": 100000,
+        "ou_base_scale": 0.1,
+        "ou_theta": 0.15,
+        "ou_sigma": 0.2,
+    }
+    # # 1) Larger Networks for More Expressive Power
+    # alg_config["actor_hiddens"] = [600, 600, 400, 300]
+    # alg_config["critic_hiddens"] = [600, 600, 400]
+    # alg_config["actor_hidden_activation"] = "relu"
+    # alg_config["critic_hidden_activation"] = "relu"
+    #
+    # # 2) Learning Rates
+    # alg_config["actor_lr"] = 1e-4  # Slightly higher than 8e-5 for faster final adaptation
+    # alg_config["critic_lr"] = 2e-4  # Lower than 3e-4 to reduce Q-value oscillations
+    #
+    # # 3) Training Setup
+    # alg_config["num_steps_sampled_before_learning_starts"] = 2000
+    # alg_config["train_batch_size"] = 256
+    #
+    # # 4) Target Network Updates & Gradient Clipping
+    # alg_config["tau"] = 0.0001
+    # alg_config["target_network_update_freq"] = 4
+    # alg_config["grad_clip"] = 5.0
+    #
+    # # 5) Exploration: Zero Noise Well Before the End
+    # alg_config["exploration_config"] = {
+    #     "type": "OrnsteinUhlenbeckNoise",
+    #     "random_timesteps": 2000,
+    #     "initial_scale": 1.0,
+    #     "final_scale": 0.0,  # Absolutely no noise in the final phase
+    #     "scale_timesteps": 50000,  # Zero noise by step 50k
+    #     "ou_base_scale": 0.1,
+    #     "ou_theta": 0.15,
+    #     "ou_sigma": 0.2,
+    # }
+    # alg_config.twin_q = False
 
     # ---------------------------------------------------------------------
     alg = alg_config.build()
@@ -94,7 +172,7 @@ def run(env=ChangingTargetEnv, n_training_episodes=1, u_target_list = [gates.Ran
     return alg, training_elapsed_time, save_dir
 
 def inference_and_save(inference_list, save_dir, train_alg, n_episodes_for_inferencing):
-    columns = ['Fidelity', 'Rewards', 'Actions', 'Self.U_Operator', 'Target_Operator', 'Unitary_target', 'Episode Id']
+    columns = ['Fidelity', 'Rewards', 'Actions', 'Self.U_Operator', 'Target_Operator', 'Original_target', 'Original_U_initial', 'Episode Id']
 
 
     for curr_gate in inference_list:
@@ -104,8 +182,8 @@ def inference_and_save(inference_list, save_dir, train_alg, n_episodes_for_infer
         plot_filename = f'inference_{curr_gate}.png'
         os.makedirs(gate_save_dir)
 
+        env_string = ""
 
-        figure_title = f"[NOISY] Inferencing on Multiple Different {str(curr_gate)}."
 
         env_data_title = f"{curr_gate}_"
         transition_history = []
@@ -115,7 +193,9 @@ def inference_and_save(inference_list, save_dir, train_alg, n_episodes_for_infer
             env = train_alg.workers.local_worker().env
             inference_env, target_gate, history = do_inferencing(env, train_alg, curr_gate)
             transition_history.append(history)
+            env_string = "Noisy " if isinstance(env, NoisyChangingTargetEnv) else "Noiseless"
 
+        figure_title = f"[{env_string}] Inferencing on Multiple Different {str(curr_gate)}."
         df = pd.DataFrame(transition_history, columns=columns)
         # df.to_pickle(env_data_title + "env_data.pkl")  # easier to load than csv
         df.to_csv(gate_save_dir + env_data_title + "env_data.csv", index=False)  # backup in case pickle doesn't work
@@ -165,7 +245,8 @@ def do_inferencing(env, train_alg, curr_gate):
 
 def main():
     env = NoisyChangingTargetEnv
-    n_training_episodes = 100
+    # env = ChangingTargetEnv
+    n_training_episodes = 60
     save = True
     plot = True
     n_episodes_for_inferencing = 1000

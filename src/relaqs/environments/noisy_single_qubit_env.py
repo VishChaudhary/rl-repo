@@ -31,6 +31,7 @@ class NoisySingleQubitEnv(SingleQubitEnv):
         self.detuning_update()
         self.U_target = self.unitary_to_superoperator(env_config["U_target"])
         self.original_U_target = None
+        self.original_U_initial = None
         self.U_initial = self.unitary_to_superoperator(env_config["U_initial"])
         self.relaxation_rates_list = env_config["relaxation_rates_list"]
         self.relaxation_ops = env_config["relaxation_ops"]

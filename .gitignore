@@ -7,3 +7,4 @@ venv/
 requirements.txt
 ray/
 .idea
+scripts/error_testing.py
