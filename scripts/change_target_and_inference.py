@@ -20,7 +20,6 @@ def run(env=ChangingTargetEnv, n_training_episodes=1, u_target_list = [gates.Ran
     alg_config = DDPGConfig()
     alg_config.framework("torch")
     env_config = env.get_default_env_config()
-    # env_config["target_generation_function"] = XY_combination
     env_config['num_Haar_basis'] = 1
     env_config['steps_per_Haar'] = 2
     env_config["U_target_list"] = u_target_list
@@ -33,101 +32,62 @@ def run(env=ChangingTargetEnv, n_training_episodes=1, u_target_list = [gates.Ran
         env_config["relaxation_rates_list"] = [t1_list, t2_list]  # using real T1 data
         env_config["detuning_list"] = detuning_list
 
-
     alg_config.environment(env, env_config=env_config)
-
     alg_config.rollouts(batch_mode="complete_episodes")
 
-    #---------------------------------Configs---------------------------------
-    ### working 1-3 sets
-    # alg_config.actor_lr = 7e-5
-    # alg_config.critic_lr = 2e-4
-    #
-    # alg_config.actor_hidden_activation = "relu"
-    # alg_config.critic_hidden_activation = "relu"
-    # alg_config.num_steps_sampled_before_learning_starts = 500
-    # alg_config.actor_hiddens = [300, 300, 300, 300, 300]
-    # alg_config.critic_hiddens = [400, 400, 300]
-    # # alg_config.exploration_config["scale_timesteps"] = 1000
-    # alg_config.train_batch_size = 256
-    #
-    # alg_config.tau = 0.0002
-    # alg_config.target_network_update_freq = 4
-    # alg_config.grad_clip = 10.0
-    #
-    # alg_config.exploration_config = {
-    #     "type": "OrnsteinUhlenbeckNoise",
-    #     "random_timesteps": 1000,
-    #     "initial_scale": 1.0,  # Start with full noise
-    #     "final_scale": 0.1,  # End with zero noise
-    #     "scale_timesteps": 50000,  # Over 30,000 timesteps (adjust as needed)
-    #     "ou_base_scale": 0.1,  # Base OU noise amplitude
-    #     "ou_theta": 0.15,  # OU theta
-    #     "ou_sigma": 0.2,  # OU sigma
-    # }
-    alg_config["actor_hiddens"] = [400, 400, 300, 300]
-    alg_config["critic_hiddens"] = [400, 400, 300]
-    alg_config["actor_hidden_activation"] = "relu"
-    alg_config["critic_hidden_activation"] = "relu"
-
-    # 2. Learning Rates
-    alg_config["actor_lr"] = 8e-5
-    alg_config["critic_lr"] = 3e-4
-
-    # 3. Warm-Up and Batch Size
-    alg_config["num_steps_sampled_before_learning_starts"] = 1000
-    alg_config["train_batch_size"] = 256
-
-    # 4. Target Network Updates & Stabilization
-    alg_config["tau"] = 0.0002
-    alg_config["target_network_update_freq"] = 4
-    alg_config["grad_clip"] = 10.0
-
-    # 5. Exploration (Ornstein-Uhlenbeck Noise)
-    alg_config["exploration_config"] = {
+    #---------------------------------Optimized DDPG Configs---------------------------------
+    
+    # 1. Network Architecture - More specialized for quantum control
+    alg_config.actor_hiddens = [256, 256, 128]
+    alg_config.critic_hiddens = [256, 256, 128]
+    alg_config.actor_hidden_activation = "relu"
+    alg_config.critic_hidden_activation = "relu"
+    
+    # 2. Learning Rates - More balanced for stable learning
+    alg_config.actor_lr = 3e-4
+    alg_config.critic_lr = 5e-4
+    alg_config.train_batch_size = 64  # Smaller batch size for better generalization
+    alg_config.num_steps_sampled_before_learning_starts = 2000
+    
+    # 3. Network Updates and Stabilization - More frequent updates
+    alg_config.tau = 0.002  # Slightly faster target network updates
+    alg_config.target_network_update_freq = 1
+    alg_config.grad_clip = 1.0  # More aggressive gradient clipping
+    alg_config.twin_q = True  # Enable twin Q-networks for more stable learning
+    
+    # 4. Exploration Strategy - More focused exploration
+    alg_config.exploration_config = {
         "type": "OrnsteinUhlenbeckNoise",
-        "random_timesteps": 2000,
+        "random_timesteps": 3000,  # More initial random exploration
         "initial_scale": 1.0,
-        "final_scale": 0.05,
-        "scale_timesteps": 100000,
+        "final_scale": 0.01,  # Lower final noise for better convergence
+        "scale_timesteps": n_training_episodes * 1000,  # Scale over full training
         "ou_base_scale": 0.1,
-        "ou_theta": 0.15,
-        "ou_sigma": 0.2,
+        "ou_theta": 0.1,  # More persistent exploration
+        "ou_sigma": 0.1,  # More focused noise
     }
-    # # 1) Larger Networks for More Expressive Power
-    # alg_config["actor_hiddens"] = [600, 600, 400, 300]
-    # alg_config["critic_hiddens"] = [600, 600, 400]
-    # alg_config["actor_hidden_activation"] = "relu"
-    # alg_config["critic_hidden_activation"] = "relu"
-    #
-    # # 2) Learning Rates
-    # alg_config["actor_lr"] = 1e-4  # Slightly higher than 8e-5 for faster final adaptation
-    # alg_config["critic_lr"] = 2e-4  # Lower than 3e-4 to reduce Q-value oscillations
-    #
-    # # 3) Training Setup
-    # alg_config["num_steps_sampled_before_learning_starts"] = 2000
-    # alg_config["train_batch_size"] = 256
-    #
-    # # 4) Target Network Updates & Gradient Clipping
-    # alg_config["tau"] = 0.0001
-    # alg_config["target_network_update_freq"] = 4
-    # alg_config["grad_clip"] = 5.0
-    #
-    # # 5) Exploration: Zero Noise Well Before the End
-    # alg_config["exploration_config"] = {
-    #     "type": "OrnsteinUhlenbeckNoise",
-    #     "random_timesteps": 2000,
-    #     "initial_scale": 1.0,
-    #     "final_scale": 0.0,  # Absolutely no noise in the final phase
-    #     "scale_timesteps": 50000,  # Zero noise by step 50k
-    #     "ou_base_scale": 0.1,
-    #     "ou_theta": 0.15,
-    #     "ou_sigma": 0.2,
-    # }
-    # alg_config.twin_q = False
-
-    # ---------------------------------------------------------------------
+    
+    # 5. Replay Buffer Configuration - Prioritized experience replay
+    alg_config.replay_buffer_config = {
+        "type": "PrioritizedReplayBuffer",
+        "capacity": 100000,
+        "prioritized_replay_alpha": 0.6,
+        "prioritized_replay_beta": 0.4,
+        "prioritized_replay_eps": 1e-6,
+        "worker_side_prioritization": True,
+    }
+    
+    # 6. Optimization Configuration
+    alg_config.optimization_config = {
+        "actor_learning_rate": alg_config.actor_lr,
+        "critic_learning_rate": alg_config.critic_lr,
+        "entropy_learning_rate": 0.0001,
+        "entropy_coeff": 0.001,  # Small entropy bonus for exploration
+    }
+    
+    # Build the algorithm
     alg = alg_config.build()
+    # --------------------------------------------------------------
 
     n_training_episodes *= env_config['num_Haar_basis'] * env_config['steps_per_Haar']
 
@@ -263,6 +223,7 @@ def main():
     print(f"Training Time: {training_time}")
     print(f"Inference Time + Saving Inference + Inference Visuals: {inference_elapsed_time}")
     print(f'Results saved to: {save_dir}')
+
 
 if __name__ == "__main__":
     main()

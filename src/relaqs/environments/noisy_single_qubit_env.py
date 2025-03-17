@@ -48,7 +48,7 @@ class NoisySingleQubitEnv(SingleQubitEnv):
 
     @classmethod
     def unitary_to_superoperator(self, U):
-        return np.kron(U,U.conj())
+        return np.kron(U,U.conj().T)
         # return (spre(Qobj(U)) * spost(Qobj(U))).data.toarray()
 
     def get_relaxation_rate(self):
@@ -104,25 +104,23 @@ class NoisySingleQubitEnv(SingleQubitEnv):
 
         # gamma is the complex amplitude of the control field
         gamma_magnitude, gamma_phase, alpha = self.parse_actions(action)
-
+        
+        # Regular Hamiltonian update with current detuning
         self.hamiltonian_update(num_time_bins, self.detuning, alpha, gamma_magnitude, gamma_phase)
-
         self.operator_update(num_time_bins)
-
-        # Reward and fidelity calculation
+        
         fidelity = self.compute_fidelity()
         reward = self.compute_reward(fidelity)
         self.prev_fidelity = fidelity
-
+        
         self.state = self.get_observation()
-
         self.update_transition_history(fidelity, reward, action)
-
+        
         truncated, terminated = self.is_episode_over(fidelity)
-
-        if self.verbose is True:
+        
+        if self.verbose:
             print(self.get_info(fidelity, reward, action, truncated, terminated))
-
+            
         self.Haar_update()
 
         info = {}
