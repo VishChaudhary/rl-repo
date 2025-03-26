@@ -324,7 +324,7 @@ def network_config_creator(alg_config):
 
     return network_config
 
-def config_table(env_config, alg_config, filepath, continue_training=False, original_training_date = None):
+def config_table(env_config, alg_config, filepath, continue_training=False, original_training_date = None, noise_factor = 1):
     filtered_env_config = {}
     filtered_explor_config = {}
     network_config = network_config_creator(alg_config)
@@ -403,7 +403,7 @@ def config_table(env_config, alg_config, filepath, continue_training=False, orig
         for index, row in network_df.iterrows():
             f.write(f"| {row['Config Name']: <46} | {row['Current Value']: <21} | {row['Default Value']: <18} |\n")
         f.write("+------------------------------------------------+----------------------+--------------------+\n")
-        f.write(f"Continuation from previous training: {continue_training}\n")
+        f.write(f"Noise Factor: {noise_factor}\n")
         if continue_training:
             f.write(f"Training continued from results on: {original_training_date}\n")
 

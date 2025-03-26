@@ -166,7 +166,7 @@ class SingleQubitEnv(gym.Env):
 
         if self.verbose is True:
             print(self.get_info(fidelity, reward, action, truncated, terminated))
-            
+
         self.Haar_update()
 
         info = {}

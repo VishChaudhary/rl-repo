@@ -8,3 +8,4 @@ venv/
 requirements.txt
 ray/
 .idea
+.cursor

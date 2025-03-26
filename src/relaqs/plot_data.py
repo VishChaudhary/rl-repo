@@ -144,7 +144,7 @@ def plot_data(save_dir, episode_length= None, figure_title='', plot_filename= 'p
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, plot_filename))
 
-def inference_plot(fidelities, infidelity, rewards, figure_title, save_dir, plot_filename):
+def inference_plot(fidelities, infidelity, rewards, avg_fidelity, figure_title, save_dir, plot_filename):
     # -------------------------------> Plotting Section <-------------------------------------
     # Configure plotting styles for consistent visualization aesthetics
     rcParams['font.family'] = 'serif'
@@ -152,7 +152,7 @@ def inference_plot(fidelities, infidelity, rewards, figure_title, save_dir, plot
 
     # Create a figure with 3 subplots arranged in a row
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-    fig.suptitle(figure_title)  # Set overall figure title
+    fig.suptitle(figure_title + f' --Average Fidelity: {avg_fidelity}')  # Set overall figure title
     fig.set_size_inches(10, 5)  # Adjust figure size
 
     # ----> Scatter plot of fidelity per instance <----
@@ -184,14 +184,14 @@ def inference_plot(fidelities, infidelity, rewards, figure_title, save_dir, plot
     else:
         plt.show()  # Display the figure interactively
 
-def inference_distribution(save_dir, fidelities, bin_step, gate):
+def inference_distribution(save_dir, fidelities, avg_fidelity, bin_step, gate):
     # -------------------------------> Fidelity Histogram Plot <-------------------------------------
 
     # Define bin edges for histogram plotting with a step of 0.1
     bins = np.arange(0.0, 1.1, bin_step)  # Bins range from 0.0 to 1.0 in 0.1 increments
 
     # Set histogram title (if gate information is provided)
-    count_title = f'[{gate}] Number of Occurrences vs Fidelity'
+    count_title = f'[{gate}] Number of Occurrences vs Fidelity.'
 
     # Compute histogram bin counts
     counts, bin_edges = np.histogram(fidelities, bins=bins)
@@ -203,7 +203,7 @@ def inference_distribution(save_dir, fidelities, bin_step, gate):
     # Set labels and title for the histogram
     plt.xlabel("Fidelity")
     plt.ylabel("Number of Occurrences")
-    plt.title(count_title)
+    plt.title(count_title + f' --Average Fidelity: {avg_fidelity}')
 
     # Set x-axis ticks to match bin intervals
     plt.xticks(bins)
@@ -258,6 +258,7 @@ def multiple_inference_visuals(df, figure_title, save_dir, plot_filename, bin_st
                            gate=None, perform_analysis=False):
     # Extract fidelity, rewards, and episode IDs from the DataFrame
     fidelities = np.array(df.iloc[:, 0])  # Fidelity values per episode
+    avg_fidelity = np.mean(fidelities)
     rewards = np.array(df.iloc[:, 1])  # Rewards per episode
     episode_ids = np.array(df.iloc[:,-1])  # Episode indices
     u_target_list = df.iloc[:, 5]
@@ -278,9 +279,10 @@ def multiple_inference_visuals(df, figure_title, save_dir, plot_filename, bin_st
     fidelities = np.round(fidelities, rounding_precision)
     infidelity = np.round(infidelity, rounding_precision)
     rewards = np.round(rewards, rounding_precision)
+    avg_fidelity = np.round(avg_fidelity, rounding_precision)
 
-    inference_plot(fidelities, infidelity, rewards, figure_title, save_dir, plot_filename)
-    inference_distribution(save_dir, fidelities, bin_step=bin_step, gate=gate)
+    inference_plot(fidelities, infidelity, rewards, avg_fidelity, figure_title, save_dir, plot_filename)
+    inference_distribution(save_dir, fidelities, avg_fidelity, bin_step=bin_step, gate=gate)
     inference_bloch_sphere(save_dir, u_target_list, fidelities, gate)
 
 # if __name__ == "__main__":

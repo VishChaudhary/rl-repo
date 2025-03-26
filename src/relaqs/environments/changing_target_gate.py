@@ -80,11 +80,12 @@ class NoisyChangingTargetEnv(ChangingTargetEnv, NoisySingleQubitEnv):
 
     def get_observation(self):
         U_diff = super().get_observation()
+
         normalized_detuning = [normalize(self.detuning, self.detuning_list)]
         normalized_relaxation_rates = [normalize(self.relaxation_rate[0], self.relaxation_rates_list[0]),
-                                       normalize(self.relaxation_rate[1],
-                                                 self.relaxation_rates_list[1])]  # could do list comprehension
-        return np.append(normalized_relaxation_rates + normalized_detuning, U_diff)
+                                       normalize(self.relaxation_rate[1], self.relaxation_rates_list[1])]
+
+        return np.concatenate((normalized_relaxation_rates + normalized_detuning, U_diff))
 
 
     def return_env_config(self):
